@@ -31,13 +31,38 @@
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
   input[type=range]{width:130px}
   #desc{color:var(--txt);font-weight:600}
+  #why{color:var(--muted);font-size:12.5px;display:block;margin-top:4px;line-height:1.5}
   footer{padding:10px 18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+
+  .fit-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;margin-left:6px;vertical-align:1px}
+  .fit-good{background:#1f4d33;color:#7fe3a4}
+  .fit-bad{background:#4d2a1f;color:#f0a37f}
+  li[data-id] small.why{display:block;color:#7891ad;font-size:11px;margin-top:3px;font-style:italic}
+  .depthcap{color:var(--muted);font-size:11.5px;flex-basis:100%;margin-top:2px}
+  .suggest{border:1px dashed var(--accent);border-radius:8px;padding:8px;font-size:12px;color:#f5cf8f;margin-top:8px;background:#241a08}
+
+  #guideBtn{margin-left:auto}
+  #guideOverlay{position:fixed;inset:0;background:rgba(4,8,14,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
+  #guideOverlay.open{display:flex}
+  #guidePanel{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:22px 26px}
+  #guidePanel h2{font-size:20px;margin:0 0 4px}
+  #guidePanel .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
+  #guidePanel section{margin:18px 0;padding-top:14px;border-top:1px solid var(--line)}
+  #guidePanel section:first-of-type{border-top:none;padding-top:0}
+  #guidePanel h3{margin:0 0 6px;font-size:15px;color:var(--accent2)}
+  #guidePanel p,#guidePanel li{color:#cdd8e6;font-size:13.5px;line-height:1.6}
+  #guidePanel ul{margin:6px 0 0;padding-left:20px}
+  #guidePanel table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+  #guidePanel th,#guidePanel td{border:1px solid var(--line);padding:6px 8px;text-align:left}
+  #guidePanel th{color:var(--muted);font-weight:600}
+  #guideClose{position:sticky;top:0;float:right;margin-top:-4px}
 </style>
 </head>
 <body>
 <header>
   <h1>⚾ Softball Play Animator</h1>
   <span>Draggable defense (9 or 10 players) · hitting &amp; bunting · animated coverage &amp; throws</span>
+  <button id="guideBtn">📘 Strategy Guide</button>
 </header>
 
 <div class="wrap">
@@ -64,6 +89,7 @@
         <button data-depth="in" class="depth">Infield In</button>
         <button data-depth="bunt" class="depth">Bunt D</button>
       </div>
+      <div class="depthcap" id="depthCap"></div>
       <div class="row"><button id="reset">Reset positions</button></div>
     </div>
 
@@ -82,6 +108,7 @@
         <button data-outs="2" class="ob">2</button>
       </div>
       <div class="row"><span id="sit" style="color:var(--muted)"></span></div>
+      <div id="suggestBox"></div>
     </div>
 
     <div class="card">
@@ -103,10 +130,20 @@
       <div class="row"><label>Speed</label><input id="speed" type="range" min="0.25" max="2" step="0.25" value="1"><span id="speedLbl">1×</span></div>
       <div class="row"><label>Timeline</label><input id="scrub" type="range" min="0" max="1000" value="0" step="1"></div>
       <div class="row"><span id="desc"></span></div>
+      <div class="row"><span id="why"></span></div>
     </div>
   </div>
 </div>
 <footer>Drag any fielder to adjust alignment — your custom positions are used as the play's starting point.</footer>
+
+<div id="guideOverlay">
+  <div id="guidePanel">
+    <button id="guideClose">✕ Close</button>
+    <h2>📘 Softball Strategy Guide</h2>
+    <div class="sub">The "why" behind every call on this field — read this alongside the plays on the left.</div>
+    <div id="guideBody"></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -128,6 +165,11 @@ const DEPTH_ADJ={
   in:{"1B":{x:472,y:558},"3B":{x:328,y:558},"2B":{x:456,y:470},SS:{x:344,y:470}},
   bunt:{"1B":{x:452,y:572},"3B":{x:348,y:572},"2B":{x:492,y:512},SS:{x:372,y:452},P:{x:400,y:550}}
 };
+const DEPTH_CAP={
+  normal:"Standard depth for most counts — full range on grounders, no run conceded at the plate.",
+  in:"Trades range for a faster throw home. Call it with the tying/winning run on 3rd and outs to spare — a ball hit past the infield now scores that run.",
+  bunt:"Corners creep in anticipating a bunt. Use it when the runner situation and count make a sacrifice likely (runner on 1st/2nd, 0-1 outs) — leaves the defense vulnerable to a hard-hit ball."
+};
 const ORDER=["P","C","1B","2B","SS","3B","LF","CF","RF"];
 
 let tenPlayers=false,depth="normal",playType="hitting";
@@ -148,6 +190,8 @@ function buildStart(){
 /* ---- Plays. move.to / ball.from / ball.to accept: "@1" base, player key, or {x,y} ---- */
 const PLAYS=[
 {id:"h1",type:"hitting",name:"Ground ball to SS — 6-4-3 double play",desc:"SS fields, flips to 2B covering second, relay to 1B for two.",
+ why:"With a force at second and first, a 6-4-3 turns one ground ball into two outs. It only works because the runner on first is forced — the shortstop doesn't need to tag anyone, just beat the runner to the bag, so speed matters more than precision on the first throw.",
+ situ:{need:["@1"],outsLt:2,note:"Best with a runner on 1st and fewer than 2 outs — with 2 outs there's no double play value, just take the sure out at first."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.34],ball:{from:{x:400,y:642},to:"SS"},note:"Ground ball to shortstop"},
@@ -158,6 +202,8 @@ const PLAYS=[
  ],runners:[{from:"@H",to:"@1",t:[.12,.72]}]},
 
 {id:"h2",type:"hitting",name:"Base hit to left — cutoff and hold",desc:"LF fields, SS is the cutoff, ball to second to hold the runner.",
+ why:"The cutoff (SS) lines up between the outfielder and the base the throw is going to. Even if the throw home or to third isn't realistic, showing the cutoff discourages runners from taking an extra base, and lets the defense redirect the ball if someone gets greedy.",
+ situ:{need:[],outsLt:3,note:"Standard positioning on any base hit to left with a runner running — works regardless of outs."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.4],ball:{from:{x:400,y:642},to:"LF"},note:"Line drive into left field"},
@@ -168,6 +214,8 @@ const PLAYS=[
  ],runners:[{from:"@H",to:"@1",t:[.12,.55]}]},
 
 {id:"h3",type:"hitting",name:"Fly to right — tag up at third",desc:"RF catches, 2B lines up the cutoff, throw home for the play at the plate.",
+ why:"On any fly ball with a runner on third and fewer than 2 outs, the defense assumes the runner tags and runs. The cutoff (2B here) lets the catcher call for the ball to be cut if the throw is off-line, instead of it sailing past the plate for extra bases.",
+ situ:{need:["@3"],outsLt:2,note:"Runner on 3rd with 0 or 1 out is a run threat on any fly ball — outfield depth and arm strength decide whether you even attempt a throw home."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.42],ball:{from:{x:400,y:642},to:"RF"},arc:70,note:"Deep fly ball to right field"},
@@ -178,6 +226,8 @@ const PLAYS=[
  ],runners:[{from:"@3",to:"@H",t:[.42,.9]}]},
 
 {id:"h4",type:"hitting",name:"Gap shot right-center (uses 10th fielder)",desc:"In 10-player, RC takes the gap; 2B is the relay and SS covers second.",
+ why:"A 4th outfielder shrinks the gaps a 3-outfield alignment can't cover. The relay (2B) exists because no outfielder can throw 200+ feet accurately — the relay turns a slow, weak throw into two accurate ones and keeps extra bases off the board.",
+ situ:{need:[],outsLt:3,note:"Only available in the 10-player formation — switch to '10 Players' above to see this coverage."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.42],ball:{from:{x:400,y:642},to:{x:520,y:175}},arc:60,note:"Ball splits the right-center gap"},
@@ -187,7 +237,54 @@ const PLAYS=[
   {t:[.88,1],note:"Runner holds at second — double"}
  ],runners:[{from:"@H",to:"@2",t:[.12,.85],via:["@1"]}]},
 
+{id:"h5",type:"hitting",name:"First-and-third defense — throw-through",desc:"Runners on 1st and 3rd, less than 2 outs, batter takes a pitch. On a stolen-base attempt, 2B fakes the relay so the throw goes straight through to second while the pitcher stays alert to the run from third.",
+ why:"This is the classic first-and-third headache: if you just throw through to second normally, the runner on third strolls home while you record an out at second. The defense either (a) sends the ball through to second only if the run isn't given away for free, or (b) has the catcher fake the throw and quick-throw back to the pitcher, who can turn and pick off a runner who wandered too far off third. Communication before the pitch decides which look you use.",
+ situ:{need:["@1","@3"],outsLt:2,note:"Requires runners on both 1st AND 3rd with fewer than 2 outs — the signature 'first and third' situation."},
+ steps:[
+  {t:[0,.1],ball:{from:"P",to:{x:400,y:642}},note:"Pitch — runner from 1st breaks for 2nd"},
+  {t:[.1,.32],ball:{from:{x:400,y:642},to:"C"},note:"Catcher receives, sees the steal"},
+  {t:[.1,.34],move:[{who:"2B",to:{x:465,y:410}},{who:"SS",to:"@2"}],note:"2B cheats toward the throw lane, SS covers 2nd"},
+  {t:[.34,.58],ball:{from:"C",to:"@2"},arc:24,note:"Throw goes through to second — R3 held honest by the pitcher's eyes"},
+  {t:[.58,.8],move:[{who:"P",to:{x:400,y:560}}],note:"Pitcher squares back toward third in case R3 strays"},
+  {t:[.8,1],note:"Out at second if the throw beats the runner; run saved either way"}
+ ],runners:[{from:"@1",to:"@2",t:[.1,.55]},{from:"@3",to:"@3",t:[0,1],hold:true}]},
+
+{id:"h6",type:"hitting",name:"Bases loaded — force at home",desc:"Ground ball with the bases loaded: catcher takes the force at the plate for the safest, fastest out.",
+ why:"With the bases loaded every runner is forced, so the defense should almost always take the closest force — home plate — because it removes the lead runner and the run at the same time. Going for a double play at another base is only worth the risk if the batter is very slow or the ball is hit right at an infielder.",
+ situ:{need:["@1","@2","@3"],outsLt:2,note:"Bases loaded, less than 2 outs: take the force at home first unless the double play is a lock."},
+ steps:[
+  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
+  {t:[.12,.32],ball:{from:{x:400,y:642},to:"3B"},note:"Ground ball to third base"},
+  {t:[.12,.34],move:[{who:"1B",to:"@1"},{who:"2B",to:"@2"},{who:"SS",to:{x:340,y:400}}],note:"Everyone covers their bag"},
+  {t:[.32,.55],ball:{from:"3B",to:"C"},arc:14,note:"Throw goes home for the force — lead runner is out"},
+  {t:[.55,1],note:"One out, bases still loaded — pressure stays on the defense"}
+ ],runners:[{from:"@3",to:"@H",t:[.12,.5]},{from:"@2",to:"@3",t:[.12,.5]},{from:"@1",to:"@2",t:[.12,.5]}]},
+
+{id:"h7",type:"hitting",name:"Rundown (pickle) between 2nd and 3rd",desc:"Runner is caught off base; SS and 3B execute a rundown, throwing as few times as possible to close the gap and tag the runner.",
+ why:"Every extra throw in a rundown is a chance for an error that lets the runner advance anyway. The rule of thumb: chase the runner hard toward the base ahead, force the throw late, and never throw across your own body. Fewer throws, shorter throws, always run the runner toward the tag.",
+ situ:{need:["@2"],outsLt:2,note:"Happens when a runner on 2nd strays too far — teach it as a drill, but the same footwork applies at any base."},
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:"SS"},note:"Runner is caught leaning too far off 2nd"},
+  {t:[.15,.3],move:[{who:"SS",to:{x:355,y:410}},{who:"3B",to:{x:320,y:490}}],note:"SS closes the gap, 3B holds the bag"},
+  {t:[.3,.5],ball:{from:"SS",to:"3B"},arc:8,note:"One throw — runner committed back toward 3rd"},
+  {t:[.5,.65],move:[{who:"3B",to:{x:295,y:502}}],note:"3B closes for the tag, no second throw needed"},
+  {t:[.65,1],note:"Runner tagged out — rundown won in one throw"}
+ ],runners:[{from:"@2",to:{x:300,y:460},t:[.15,.5]}]},
+
+{id:"h8",type:"hitting",name:"Hit-and-run — runner going on the pitch",desc:"Runner on first breaks with the pitch; batter is obligated to swing and put the ball in play to protect the runner.",
+ why:"The hit-and-run trades a stolen-base risk for a bigger reward: if the batter makes contact, the runner is already moving and can often reach third on a single. The trade-off is real — a pop-up with the runner going can turn into an easy double play, so it's a calculated risk for contact hitters, not for free swingers.",
+ situ:{need:["@1"],outsLt:2,note:"Called with a runner on 1st and a contact hitter at the plate — avoid with a batter prone to pop-ups or a 2-strike count."},
+ steps:[
+  {t:[0,.14],ball:{from:"P",to:{x:400,y:642}},note:"Runner breaks with the pitch"},
+  {t:[.14,.4],ball:{from:{x:400,y:642},to:{x:250,y:340}},note:"Batter protects the runner — grounder to the left side"},
+  {t:[.14,.42],move:[{who:"SS",to:{x:250,y:345}},{who:"3B",to:"@3"}],note:"SS has to range far — the hole is bigger with the runner going"},
+  {t:[.42,.62],ball:{from:"SS",to:"@1"},arc:20,note:"Long throw across the diamond"},
+  {t:[.62,1],note:"Runner motoring to third on the ground ball"}
+ ],runners:[{from:"@1",to:"@3",t:[.14,.75]},{from:"@H",to:"@1",t:[.14,.85]}]},
+
 {id:"b1",type:"bunting",name:"Sacrifice bunt — 1B charges",desc:"Corners crash, 2B covers first, SS covers second, P backs the middle.",
+ why:"A sac bunt trades an out for a base — you're only willing to do that when the run the runner represents is worth more than the out. 1B charges because the bunt is almost always toward that side; 2B has to cover first since 1B has abandoned the bag.",
+ situ:{need:["@1"],outsLt:2,note:"Classic 'productive out' call: runner on 1st (or 2nd), 0-1 outs, when one run matters more than a big inning — think late innings, close game."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.26],ball:{from:{x:400,y:642},to:{x:446,y:598}},note:"Bunt down the first-base line"},
@@ -197,6 +294,8 @@ const PLAYS=[
  ],runners:[{from:"@H",to:"@1",t:[.12,.7]},{from:"@1",to:"@2",t:[.12,.6]}]},
 
 {id:"b2",type:"bunting",name:"Bunt to third — 3B fields, SS covers",desc:"3B attacks the ball, SS rotates to third, 2B takes first.",
+ why:"A batter can angle a bunt toward third specifically to avoid the charging first baseman. When that happens, 3B has to attack it aggressively because the throw across the diamond to first is long — the defense trades a longer throw for taking away the easier bunt location.",
+ situ:{need:["@1"],outsLt:2,note:"Same run-early situation as any sac bunt, but the ball is bunted toward third instead of first — often the batter's intent against an aggressive charging 1B."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.26],ball:{from:{x:400,y:642},to:{x:356,y:598}},note:"Bunt down the third-base line"},
@@ -205,7 +304,9 @@ const PLAYS=[
   {t:[.7,1],note:"Batter retired at first"}
  ],runners:[{from:"@H",to:"@1",t:[.12,.72]}]},
 
-{id:"b3",type:"bunting",name:"Squeeze play — throw home",desc:"Runner breaks from third on the pitch; P fields and fires home.",
+{id:"b3",type:"bunting",name:"Suicide squeeze — throw home",desc:"Runner breaks from third the instant the pitcher starts the delivery; batter must bunt no matter what. P fields and fires home.",
+ why:"'Suicide' because the runner is committed before the ball is even bunted — if the batter misses it, the runner is dead at the plate with no chance to stop. High risk, high reward: it's nearly impossible to defend if executed right, since the defense can't react until the ball is already down.",
+ situ:{need:["@3"],outsLt:2,note:"Runner on 3rd, 0-1 outs, needs a batter who can be trusted to get the bunt down — never call this with 2 outs, since a missed bunt just ends the inning with the runner erased for nothing."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"Runner breaks — squeeze is on"},
   {t:[.12,.26],ball:{from:{x:400,y:642},to:{x:400,y:594}},note:"Bunt back to the pitcher"},
@@ -214,7 +315,21 @@ const PLAYS=[
   {t:[.62,1],note:"Catcher applies the tag"}
  ],runners:[{from:"@3",to:"@H",t:[.05,.72]},{from:"@H",to:"@1",t:[.12,.8]}]},
 
+{id:"b5",type:"bunting",name:"Safety squeeze — runner waits to react",desc:"Runner on third holds until they see the bunt is down safely, then breaks for home — lower risk than the suicide squeeze.",
+ why:"The safety squeeze protects the runner: if the bunt is popped up or missed, the runner never left third and the defense gets nothing extra. It costs a little in speed (the runner starts later) but it's much harder to blow up than a suicide squeeze, especially with a less reliable bunter.",
+ situ:{need:["@3"],outsLt:2,note:"Same situation as a suicide squeeze but safer — use this version when you're not 100% sure the batter gets the bunt down."},
+ steps:[
+  {t:[0,.14],ball:{from:"P",to:{x:400,y:642}},note:"Pitch — runner holds at third, watching the ball"},
+  {t:[.14,.3],ball:{from:{x:400,y:642},to:{x:408,y:596}},note:"Bunt is down safely in front of the plate"},
+  {t:[.14,.42],move:[{who:"C",to:{x:408,y:600}},{who:"1B",to:{x:462,y:566}},{who:"2B",to:"@1"},{who:"P",to:{x:420,y:565}}],note:"Catcher and pitcher both converge — no clean force"},
+  {t:[.3,.4],note:"Runner sees the bunt is safe and breaks for home"},
+  {t:[.42,.65],ball:{from:{x:408,y:600},to:"3B"},arc:16,note:"Only play left is a long shot back to third — too late, run scores"},
+  {t:[.65,1],note:"Run scores; batter safe or thrown out at first — either way the run counted"}
+ ],runners:[{from:"@3",to:"@H",t:[.3,.68]},{from:"@H",to:"@1",t:[.14,.75]}]},
+
 {id:"b4",type:"bunting",name:"Drag bunt — wheel play",desc:"Wheel rotation: both corners crash, SS covers third, 2B covers first.",
+ why:"The 'wheel' rotates the middle infielders to cover the bags the crashing corners abandon. It's an aggressive, high-risk call — if the batter fakes the bunt and swings away, both gaps down the lines are wide open — so it's usually saved for a bunt-happy team or a clear sacrifice count.",
+ situ:{need:["@1","@2"],outsLt:2,note:"Best with runners on 1st AND 2nd, 0-1 outs, against a team that bunts often — the double-crash defense takes away both bunt lanes at once."},
  steps:[
   {t:[0,.14],move:[{who:"3B",to:{x:352,y:578}},{who:"1B",to:{x:456,y:576}},{who:"SS",to:"@3"},{who:"2B",to:"@1"}],ball:{from:"P",to:{x:400,y:642}},note:"Wheel rotation on the pitch"},
   {t:[.14,.3],ball:{from:{x:400,y:642},to:{x:352,y:594}},note:"Drag bunt to the third-base side"},
@@ -405,24 +520,44 @@ function loop(ts){
 function play(){if(!current)return;if(t>=1)t=0;if(playing)return;playing=true;last=0;raf=requestAnimationFrame(loop);}
 function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;}
 
+function fitPlay(p){
+  if(!p.situ)return null;
+  const needOk=(p.situ.need||[]).every(b=>onBase.has(b));
+  const outsOk=p.situ.outsLt==null||outs<p.situ.outsLt;
+  return {ok:needOk&&outsOk,note:p.situ.note};
+}
+
 function selectPlay(p){stop();current=p;t=0;
-  (p.runners||[]).forEach(r=>{if(r.from!=="@H")onBase.add(r.from);});
-  document.querySelectorAll(".rb").forEach(b=>b.classList.toggle("active",onBase.has(b.dataset.base)));
-  updateSit();
   [...document.querySelectorAll("#playList li")].forEach(li=>li.classList.toggle("sel",li.dataset.id===p.id));
-  draw();}
+  draw();
+  const w=document.getElementById("why");
+  w.textContent=p.why?("Why: "+p.why):"";
+}
 
 function renderList(){
   const ul=document.getElementById("playList");ul.innerHTML="";
   const list=PLAYS.filter(p=>p.type===playType);
   list.forEach(p=>{
     const li=document.createElement("li");li.dataset.id=p.id;
-    li.innerHTML=`<strong>${p.name}</strong><small>${p.desc}</small>`;
+    const fit=fitPlay(p);
+    const badge=fit?`<span class="fit-badge ${fit.ok?"fit-good":"fit-bad"}">${fit.ok?"FITS NOW":"OFF-SITUATION"}</span>`:"";
+    li.innerHTML=`<strong>${p.name}${badge}</strong><small>${p.desc}</small>${fit&&fit.note?`<small class="why">${fit.note}</small>`:""}`;
     li.onclick=()=>selectPlay(p);ul.appendChild(li);
   });
-  if(list.length)selectPlay(list[0]);
+  if(list.length && (!current || current.type!==playType))selectPlay(list[0]);
+  updateSuggestions();
 }
-function rebuild(){stop();buildStart();drawField();t=0;draw();}
+
+function updateSuggestions(){
+  const box=document.getElementById("suggestBox");
+  const fitting=PLAYS.filter(p=>p.situ&&fitPlay(p).ok);
+  if(!fitting.length){box.innerHTML="";return;}
+  const names=fitting.slice(0,3).map(p=>p.name.split(" — ")[0]).join(", ");
+  box.innerHTML=`<div class="suggest">💡 With this situation, consider: <strong>${names}</strong></div>`;
+}
+
+function rebuild(){stop();buildStart();drawField();t=0;draw();updateDepthCap();}
+function updateDepthCap(){document.getElementById("depthCap").textContent=DEPTH_CAP[depth]||"";}
 
 const tog=(sel,b)=>{document.querySelectorAll(sel).forEach(x=>x.classList.remove("active"));b.classList.add("active");};
 document.getElementById("f9").onclick=e=>{tenPlayers=false;tog(".fnum",e.currentTarget);rebuild();};
@@ -433,9 +568,9 @@ document.querySelectorAll(".rb").forEach(b=>b.onclick=()=>{
   const k=b.dataset.base;
   if(onBase.has(k))onBase.delete(k);else onBase.add(k);
   b.classList.toggle("active",onBase.has(k));
-  updateSit();stop();t=0;draw();
+  updateSit();stop();t=0;draw();renderList();
 });
-document.querySelectorAll(".ob").forEach(b=>b.onclick=()=>{outs=+b.dataset.outs;tog(".ob",b);updateSit();draw();});
+document.querySelectorAll(".ob").forEach(b=>b.onclick=()=>{outs=+b.dataset.outs;tog(".ob",b);updateSit();draw();renderList();});
 function updateSit(){
   const names={"@1":"1st","@2":"2nd","@3":"3rd"};
   const on=["@1","@2","@3"].filter(b=>onBase.has(b)).map(b=>names[b]);
@@ -449,7 +584,80 @@ document.getElementById("restart").onclick=()=>{stop();t=0;draw();};
 document.getElementById("speed").oninput=e=>{speed=+e.target.value;document.getElementById("speedLbl").textContent=speed+"×";};
 document.getElementById("scrub").oninput=e=>{stop();t=+e.target.value/1000;render(current,t);};
 
-buildStart();drawField();renderList();
+/* ---- Strategy Guide ---- */
+const GUIDE=`
+<section>
+  <h3>Reading outs and runners: the core decision loop</h3>
+  <p>Every defensive and offensive call starts with the same two questions: <strong>how many outs</strong>, and <strong>who's forced to run</strong>. A runner is "forced" only if every base behind them is occupied — that's why a runner on 2nd with 1st base empty can just stay put on a ground ball, but a runner on 1st with the base behind him (home) always occupied is always forced to try for 2nd.</p>
+  <p>Toggle the runners and outs in the Situation panel on the left — the play list automatically flags which plays realistically fit ("FITS NOW") versus which don't apply to the current situation.</p>
+</section>
+<section>
+  <h3>Force play vs. tag play</h3>
+  <table>
+    <tr><th>Force out</th><th>Tag out</th></tr>
+    <tr><td>Runner MUST run because the base behind them is occupied.</td><td>Runner is not required to advance — fielder must physically tag the runner or the base ahead of them.</td></tr>
+    <tr><td>Fielder just needs to touch the base with the ball before the runner arrives.</td><td>Fielder must apply the tag directly to the runner's body.</td></tr>
+    <tr><td>Example: runner on 1st, ground ball — force at 2nd.</td><td>Example: runner on 2nd only, ground ball to SS — SS must tag the runner, there's no force.</td></tr>
+  </table>
+  <p>This distinction is why a 6-4-3 double play works with a runner on 1st but a rundown is needed when a runner strays off 2nd with 1st base empty.</p>
+</section>
+<section>
+  <h3>Cutoffs and relays</h3>
+  <p>Any ball hit to the outfield with a runner in scoring position needs a cutoff — an infielder who lines up between the fielder and the target base. The cutoff exists for three reasons: it shortens a long, inaccurate throw into two accurate ones; it lets the defense change the target if a different runner takes off; and it discourages runners from testing a strong arm.</p>
+  <ul>
+    <li><strong>SS</strong> usually cuts throws coming from left field.</li>
+    <li><strong>2B</strong> usually cuts throws coming from center and right field.</li>
+    <li>The pitcher backs up throws to home; the corner infielder not involved in the play backs up throws to their base.</li>
+  </ul>
+</section>
+<section>
+  <h3>Playing for one run vs. playing for the big inning</h3>
+  <p>Infield-in and bunt-defense depth both give up range in exchange for a faster reaction. That trade is only worth it in specific spots:</p>
+  <ul>
+    <li><strong>Infield in</strong> — tying or go-ahead run on 3rd, fewer than 2 outs. A ball that gets through now scores a run instead of just moving runners.</li>
+    <li><strong>Normal depth</strong> — everywhere else. The extra range prevents bigger innings even though it occasionally lets a run score from 3rd on contact.</li>
+    <li><strong>Bunt defense</strong> — runner(s) on base, 0-1 outs, and the situation/count says a sacrifice is likely. Corners crash early to shrink the bunt's head start.</li>
+  </ul>
+</section>
+<section>
+  <h3>Bunting: sacrifice vs. squeeze vs. drag</h3>
+  <ul>
+    <li><strong>Sacrifice bunt</strong> — trades an out to advance a runner. Worth it when one run matters more than a big inning (late innings, close game, weak hitters coming up).</li>
+    <li><strong>Suicide squeeze</strong> — runner breaks from 3rd before the bunt is down. High risk (a missed bunt strands the runner dead at home) but nearly unstoppable if executed, since the defense can't react until the ball is already on the ground.</li>
+    <li><strong>Safety squeeze</strong> — runner waits to see the bunt is down before breaking. Slower, but protects the runner if the bunt is missed or popped up.</li>
+    <li><strong>Drag/slap bunt</strong> — batter (often a fast slap hitter) bunts for a base hit rather than a sacrifice, exploiting a defense that isn't crashing.</li>
+  </ul>
+</section>
+<section>
+  <h3>First-and-third: the defense's dilemma</h3>
+  <p>Runners on 1st and 3rd is the trickiest situation to defend. If the runner on 1st steals and the catcher throws through to 2nd normally, the runner on 3rd often walks home for free. Common defensive answers:</p>
+  <ul>
+    <li><strong>Throw through</strong> — accept the run only if the batting team is unlikely to actually send the runner home, or if the game situation says an out at 2nd matters more.</li>
+    <li><strong>Fake-and-hold</strong> — catcher fakes the throw to 2nd and instead looks the runner back at 3rd, or quick-tosses back to the pitcher, who can catch a runner who strayed too far off 3rd.</li>
+    <li><strong>Cutoff intercept</strong> — the throw still goes to 2nd, but a middle infielder cheats into the throw lane and can redirect it home if the runner from 3rd breaks.</li>
+  </ul>
+</section>
+<section>
+  <h3>Hit-and-run</h3>
+  <p>The runner on 1st breaks with the pitch, and the batter is obligated to protect them by putting the ball in play — even a mediocre swing is preferable to taking the pitch and risking a stolen-base throw-out. It works best with a contact hitter and a fastball count; it's a poor call on a 2-strike count or with a hitter who pops the ball up often, since a line-drive or fly-out with the runner going can turn into an easy double play.</p>
+</section>
+<section>
+  <h3>Rundowns (pickles)</h3>
+  <p>When a runner gets caught between bases, the defense's goal is to finish it in as few throws as possible. Every extra throw is a chance for a errant toss that lets the runner advance anyway. Run the runner hard toward the base ahead of them, get the throw off late (not early), and never let a fielder throw across their own body.</p>
+</section>
+<section>
+  <h3>9 vs. 10 defenders</h3>
+  <p>A 10th defender (used in many rec/travel leagues) adds a 4th outfielder, most often stationed in right-center or left-center depending on the batter's pull tendency. This shrinks the gaps that a 3-outfielder alignment can't fully cover, at the cost of one fewer body if you wanted extra infield depth instead. Try the "10 Players" formation with the gap-shot play to see the difference in coverage.</p>
+</section>`;
+
+document.getElementById("guideBtn").onclick=()=>{
+  document.getElementById("guideBody").innerHTML=GUIDE;
+  document.getElementById("guideOverlay").classList.add("open");
+};
+document.getElementById("guideClose").onclick=()=>document.getElementById("guideOverlay").classList.remove("open");
+document.getElementById("guideOverlay").addEventListener("click",e=>{if(e.target.id==="guideOverlay")e.currentTarget.classList.remove("open");});
+
+buildStart();drawField();updateDepthCap();updateSit();renderList();
 </script>
 </body>
 </html>
