@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Softball Play Animator — Hitting &amp; Bunting</title>
+<style>
+  :root{
+    --bg:#0e1520; --panel:#16202e; --line:#243349; --txt:#e8eef7; --muted:#9fb0c6;
+    --accent:#f5a524; --accent2:#3aa0ff; --green:#2f7d4f; --dirt:#b0703b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
+  header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+  h1{font-size:18px;margin:0}
+  header span{color:var(--muted);font-size:12px}
+  .wrap{display:flex;gap:16px;padding:16px;align-items:flex-start;flex-wrap:wrap}
+  .field{flex:1 1 620px;min-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .side{width:320px;flex:0 0 320px;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .card h2{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  button,select{font:inherit;color:var(--txt);background:#1e2b3d;border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#1a1207;border-color:var(--accent);font-weight:600}
+  button.active{background:var(--accent2);border-color:var(--accent2);color:#04121f;font-weight:600}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row+.row{margin-top:8px}
+  label{color:var(--muted);font-size:12px}
+  ul.plays{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto}
+  ul.plays li{padding:7px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+  ul.plays li:hover{background:#1e2b3d}
+  ul.plays li.sel{background:#1e2b3d;border-color:var(--accent)}
+  ul.plays li small{display:block;color:var(--muted)}
+  svg{width:100%;height:auto;display:block;touch-action:none}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:8px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+  input[type=range]{width:120px}
+  footer{padding:10px 18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚾ Softball Play Animator</h1>
+  <span>Draggable defense (9 or 10 players) · hitting &amp; bunting situations · animated coverage</span>
+</header>
+
+<div class="wrap">
+  <div class="field">
+    <svg id="svg" viewBox="0 0 800 720" aria-label="Softball field"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:#3aa0ff"></i>Defense</span>
+      <span><i class="dot" style="background:#f5a524"></i>Batter / Runner</span>
+      <span><i class="dot" style="background:#fff"></i>Ball</span>
+      <span>Dashed = throw · Solid = player path</span>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <h2>Formation</h2>
+      <div class="row">
+        <button id="f9" class="active">9 Players</button>
+        <button id="f10">10 Players (4 OF)</button>
+      </div>
+      <div class="row">
+        <label>Depth</label>
+        <button data-depth="normal" class="depth active">Normal</button>
+        <button data-depth="in" class="depth">Infield In</button>
+        <button data-depth="bunt" class="depth">Bunt D</button>
+      </div>
+      <div class="row"><button id="reset">Reset positions</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Play</h2>
+      <div class="row">
+        <button data-type="hitting" class="ptype active">Hitting</button>
+        <button data-type="bunting" class="ptype">Bunting</button>
+      </div>
+      <ul class="plays" id="playList"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Playback</h2>
+      <div class="row">
+        <button id="play" class="primary">▶ Play</button>
+        <button id="pause">⏸</button>
+        <button id="restart">⟲</button>
+      </div>
+      <div class="row">
+        <label>Speed</label><input id="speed" type="range" min="0.25" max="2" step="0.25" value="1">
+        <span id="speedLbl">1.0×</span>
+      </div>
+      <div class="row">
+        <label>Timeline</label><input id="scrub" type="range" min="0" max="1000" value="0" step="1">
+      </div>
+      <div class="row"><label id="desc" style="color:var(--txt)"></label></div>
+    </div>
+  </div>
+</div>
+<footer>Drag any player to adjust. Positions persist while you switch plays. Built for coaches — no install needed.</footer>
+
+<script>
+const SVGNS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("svg");
+
+/* ---------- Field geometry (field coords) ---------- */
+const HOME={x:400,y:620}, P1={x:520,y:500}, P2={x:400,y:380}, P3={x:280,y:500};
+const MOUND={x:400,y:520};
+const BASES={H:HOME,"1B":P1,"2B":P2,"3B":P3,M:MOUND};
+
+/* ---------- Base defensive positions ---------- */
+const BASE_POS={
+  P:{x:400,y:520,label:"P"},
+  C:{x:400,y:665,label:"C"},
+  "1B":{x:498,y:530,label:"1B"},
+  "2B":{x:470,y:430,label:"2B"},
+  SS:{x:330,y:430,label:"SS"},
+  "3B":{x:302,y:530,label:"3B"},
+  LF:{x:210,y:270,label:"LF"},
+  CF:{x:400,y:210,label:"CF"},
+  RF:{x:590,y:270,label:"RF"},
+  RC:{x:500,y:230,label:"RC"}   // 10th player (right-center), LF/CF shift when active
+};
+const DEPTH_ADJ={
+  normal:{},
+  in:{ "1B":{x:470,y:560},"3B":{x:330,y:560},"2B":{x:455,y:470},SS:{x:345,y:470} },
+  bunt:{ "1B":{x:452,y:572},"3B":{x:348,y:572},"2B":{x:492,y:512},SS:{x:372,y:452},P:{x:400,y:552} }
+};
+
+let tenPlayers=false, depth="normal", playType="hitting";
+let players={}, homeStore={};
+
+function buildPlayers(){
+  const keys=["P","C","1B","2B","SS","3B","LF","CF","RF"].concat(tenPlayers?["RC"]:[]);
+  players={};
+  keys.forEach(k=>{
+    const b=BASE_POS[k], adj=(DEPTH_ADJ[depth]||{})[k]||{};
+    let x=adj.x??b.x, y=adj.y??b.y;
+    if(tenPlayers){ if(k==="LF"){x=165;y=250;} if(k==="CF"){x=300;y=205;} if(k==="RF"){x=635;y=250;} }
+    players[k]={x,y,hx:x,hy:y,label:b.label};
+  });
+}
+
+/* ---------- Play library ---------- */
+/* step: {t:[start,end], move:{who,to}, throw:{from,to}, note} times 0..1 */
+const PLAYS=[
+/* HITTING */
+{id:"h1",type:"hitting",name:"Ground ball to SS — 6-4-3 DP",desc:"SS fields, flips to 2B covering second, relay to first for the double play.",
+ steps:[
+  {t:[0,.18],ball:{from:"P",to:{x:400,y:640}},note:"Pitch"},
+  {t:[.18,.42],ball:{from:{x:400,y:640},to:"SS"},runner:{from:"H",to:"1B",t:[.18,.75]},note:"Ground ball to SS"},
+  {t:[.42,.55],move:[{who:"2B",to:"2B"}],note:"2B covers second"},
+  {t:[.55,.68],ball:{from:"SS",to:"2B"},throwArc:true,note:"Flip to second — one out"},
+  {t:[.68,.85],ball:{from:"2B",to:"1B"},throwArc:true,move:[{who:"1B",to:"1B"}],note:"Turn two at first"},
+  {t:[.85,1],note:"Double play complete"}
+]},
+{id:"h2",type:"hitting",name:"Base hit to LF — cutoff & hold",desc:"LF fields, SS is the cutoff, ball goes to second base to hold the runner.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},note:"Pitch"},
+  {t:[.15,.45],ball:{from:{x:400,y:640},to:"LF"},runner:{from:"H",to:"1B",t:[.15,.6]},note:"Line drive to left"},
+  {t:[.3,.5],move:[{who:"SS",to:{x:290,y:350}},{who:"CF",to:{x:300,y:250}},{who:"3B",to:"3B"}],note:"SS sets cutoff, CF backs up"},
+  {t:[.5,.72],ball:{from:"LF",to:"SS"},throwArc:true,note:"Throw to cutoff"},
+  {t:[.72,.9],ball:{from:"SS",to:"2B"},throwArc:true,move:[{who:"2B",to:"2B"}],note:"Ball to second, runner held"},
+  {t:[.9,1],note:"Runner stays at first"}
+]},
+{id:"h3",type:"hitting",name:"Fly ball to RF — tag up at third",desc:"RF catches, 2B is the trail/cutoff, throw home through the cut.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},note:"Pitch"},
+  {t:[.15,.5],ball:{from:{x:400,y:640},to:"RF"},arc:true,note:"Deep fly to right"},
+  {t:[.35,.55],move:[{who:"2B",to:{x:470,y:360}},{who:"1B",to:"1B"},{who:"CF",to:{x:520,y:250}}],note:"2B lines up cutoff"},
+  {t:[.55,.75],ball:{from:"RF",to:"2B"},throwArc:true,runner:{from:"3B",to:"H",t:[.5,.85]},note:"Runner tags from third"},
+  {t:[.75,.95],ball:{from:"2B",to:"C"},throwArc:true,note:"Cut and throw home"},
+  {t:[.95,1],note:"Play at the plate"}
+]},
+{id:"h4",type:"hitting",name:"Gap shot right-center (10-player)",desc:"With four outfielders the RC player takes the gap; 2B relays, SS trails.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},note:"Pitch"},
+  {t:[.15,.5],ball:{from:{x:400,y:640},to:{x:520,y:180}},note:"Gap shot to right-center"},
+  {t:[.3,.55],move:[{who:tenPlayers?"RC":"CF",to:{x:520,y:180}},{who:"RF",to:{x:600,y:220}},{who:"2B",to:{x:480,y:340}},{who:"SS",to:"2B"}],note:"RC to the ball, 2B is relay"},
+  {t:[.55,.78],ball:{from:{x:520,y:180},to:"2B"},throwArc:true,runner:{from:"H",to:"2B",t:[.15,.8]},note:"Relay throw in"},
+  {t:[.78,.95],ball:{from:"2B",to:"SS"},throwArc:true,note:"Ball to second base"},
+  {t:[.95,1],note:"Runner holds at second"}
+]},
+/* BUNTING */
+{id:"b1",type:"bunting",name:"Sacrifice bunt — 1B charges",desc:"Corners crash, pitcher covers the middle, 2B covers first, SS covers second.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},note:"Pitch"},
+  {t:[.15,.35],ball:{from:{x:400,y:640},to:{x:440,y:600}},
+     move:[{who:"1B",to:{x:462,y:570}},{who:"3B",to:{x:345,y:568}},{who:"2B",to:"1B"},{who:"SS",to:"2B"}],
+     runner:{from:"H",to:"1B",t:[.15,.7]},note:"Bunt down the first-base line"},
+  {t:[.35,.55],move:[{who:"1B",to:{x:440,y:598}}],note:"1B charges the ball"},
+  {t:[.55,.78],ball:{from:{x:440,y:600},to:"2B"},throwArc:true,note:"Throw to 2B covering first"},
+  {t:[.78,1],note:"Out at first, runner advances"}
+]},
+{id:"b2",type:"bunting",name:"Bunt to third — 3B fields, P covers",desc:"3B attacks, SS rotates to third, pitcher covers the third-base side.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},note:"Pitch"},
+  {t:[.15,.35],ball:{from:{x:400,y:640},to:{x:358,y:600}},
+     move:[{who:"3B",to:{x:358,y:598}},{who:"SS",to:"3B"},{who:"1B",to:{x:462,y:570}},{who:"2B",to:"1B"},{who:"P",to:{x:370,y:560}}],
+     runner:{from:"H",to:"1B",t:[.15,.72]},note:"Bunt down the third-base line"},
+  {t:[.35,.6],note:"3B fields barehanded"},
+  {t:[.6,.85],ball:{from:{x:358,y:600},to:"2B"},throwArc:true,note:"Throw across to first"},
+  {t:[.85,1],note:"Batter retired"}
+]},
+{id:"b3",type:"bunting",name:"Squeeze play — throw home",desc:"Runner breaks from third; pitcher fields and fires home for the tag.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},runner:{from:"3B",to:"H",t:[.05,.75]},note:"Runner breaks — squeeze on"},
+  {t:[.15,.35],ball:{from:{x:400,y:640},to:{x:400,y:596}},
+    move:[{who:"P",to:{x:400,y:590}},{who:"1B",to:{x:462,y:570}},{who:"3B",to:{x:348,y:570}},{who:"2B",to:"1B"}],note:"Bunt back to the pitcher"},
+  {t:[.35,.6],note:"P fields it clean"},
+  {t:[.6,.8],ball:{from:{x:400,y:596},to:"C"},throwArc:true,note:"Throw home"},
+  {t:[.8,1],note:"Catcher applies the tag"}
+]},
+{id:"b4",type:"bunting",name:"Slap/drag bunt — wheel play",desc:"Wheel: 3B and 1B crash, SS covers third, 2B covers first.",
+ steps:[
+  {t:[0,.15],ball:{from:"P",to:{x:400,y:640}},
+    move:[{who:"3B",to:{x:352,y:580}},{who:"1B",to:{x:455,y:578}},{who:"SS",to:"3B"},{who:"2B",to:"1B"}],note:"Wheel rotation on the pitch"},
+  {t:[.15,.38],ball:{from:{x:400,y:640},to:{x:352,y:592}},runner:{from:"H",to:"1B",t:[.15,.7]},note:"Drag bunt to third side"},
+  {t:[.38,.6],move:[{who:"3B",to:{x:352,y:592}}],note:"3B attacks the ball"},
+  {t:[.6,.85],ball:{from:{x:352,y:592},to:"2B"},throwArc:true,note:"Throw to first"},
+  {t:[.85,1],note:"Bang-bang at first"}
+]}
+];
+
+/* ---------- Rendering ---------- */
+let gField,gPaths,gPlayers,gBall,gRunner;
+function drawField(){
+  svg.innerHTML="";
+  const defs=document.createElementNS(SVGNS,"defs");
+  defs.innerHTML=`<radialGradient id="grass" cx="50%" cy="80%"><stop offset="0%" stop-color="#3a8f5c"/><stop offset="100%" stop-color="#1f5c3a"/></radialGradient>`;
+  svg.appendChild(defs);
+  gField=el("g"); svg.appendChild(gField);
+  gPaths=el("g"); svg.appendChild(gPaths);
+  gRunner=el("g"); svg.appendChild(gRunner);
+  gPlayers=el("g"); svg.appendChild(gPlayers);
+  gBall=el("g"); svg.appendChild(gBall);
+
+  add(gField,"rect",{x:0,y:0,width:800,height:720,fill:"url(#grass)",rx:12});
+  // outfield fence arc
+  add(gField,"path",{d:`M ${HOME.x-330} ${HOME.y-30} A 360 360 0 0 1 ${HOME.x+330} ${HOME.y-30}`,fill:"none",stroke:"#0d3a25",'stroke-width':10});
+  // infield dirt
+  add(gField,"path",{d:`M ${HOME.x} ${HOME.y+8} L ${P3.x-58} ${P3.y-10} A 175 175 0 0 1 ${P1.x+58} ${P1.y-10} Z`,fill:"var(--dirt)",opacity:.85});
+  // foul lines
+  add(gField,"line",{x1:HOME.x,y1:HOME.y,x2:HOME.x-360,y2:HOME.y-360,stroke:"#fff",'stroke-width':3,opacity:.8});
+  add(gField,"line",{x1:HOME.x,y1:HOME.y,x2:HOME.x+360,y2:HOME.y-360,stroke:"#fff",'stroke-width':3,opacity:.8});
+  // basepaths
+  add(gField,"path",{d:`M ${HOME.x} ${HOME.y} L ${P1.x} ${P1.y} L ${P2.x} ${P2.y} L ${P3.x} ${P3.y} Z`,fill:"none",stroke:"#fff",'stroke-width':2,opacity:.55});
+  // mound
+  add(gField,"circle",{cx:MOUND.x,cy:MOUND.y,r:26,fill:"#c98450",opacity:.9});
+  // bases
+  [P1,P2,P3].forEach(b=>add(gField,"rect",{x:b.x-9,y:b.y-9,width:18,height:18,fill:"#fff",transform:`rotate(45 ${b.x} ${b.y})`}));
+  add(gField,"path",{d:`M ${HOME.x-10} ${HOME.y-8} L ${HOME.x+10} ${HOME.y-8} L ${HOME.x+10} ${HOME.y+4} L ${HOME.x} ${HOME.y+13} L ${HOME.x-10} ${HOME.y+4} Z`,fill:"#fff"});
+  drawPlayers();
+}
+function el(n){return document.createElementNS(SVGNS,n);}
+function add(p,n,a){const e=el(n);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e;}
+
+function drawPlayers(){
+  gPlayers.innerHTML="";
+  for(const k in players){
+    const p=players[k];
+    const g=add(gPlayers,"g",{class:"pl","data-k":k,style:"cursor:grab"});
+    add(g,"circle",{cx:p.x,cy:p.y,r:15,fill:"#3aa0ff",stroke:"#0b2740","stroke-width":2});
+    const t=add(g,"text",{x:p.x,y:p.y+4,"text-anchor":"middle","font-size":11,"font-weight":"700",fill:"#04121f"});
+    t.textContent=p.label;
+    makeDraggable(g,k);
+  }
+}
+function makeDraggable(g,k){
+  g.addEventListener("pointerdown",e=>{
+    g.setPointerCapture(e.pointerId); stop();
+    const move=ev=>{
+      const pt=toSvg(ev);
+      players[k].x=pt.x;players[k].y=pt.y;players[k].hx=pt.x;players[k].hy=pt.y;
+      g.querySelector("circle").setAttribute("cx",pt.x);
+      g.querySelector("circle").setAttribute("cy",pt.y);
+      g.querySelector("text").setAttribute("x",pt.x);
+      g.querySelector("text").setAttribute("y",pt.y+4);
+    };
+    const up=ev=>{g.releasePointerCapture(e.pointerId);g.removeEventListener("pointermove",move);g.removeEventListener("pointerup",up);};
+    g.addEventListener("pointermove",move);g.addEventListener("pointerup",up);
+  });
+}
+function toSvg(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse());}
+
+/* ---------- Animation engine ---------- */
+let current=null,t=0,raf=null,speed=1,playing=false,DUR=9000;
+
+function resolve(ref){
+  if(!ref) return null;
+  if(typeof ref==="object") return {x:ref.x,y:ref.y};
+  if(players[ref]) return {x:players[ref].hx,y:players[ref].hy};
+  if(BASES[ref]) return {x:BASES[ref].x,y:BASES[ref].y};
+  return null;
+}
+const lerp=(a,b,f)=>a+(b-a)*f;
+const ease=f=>f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;
+const clamp01=v=>Math.max(0,Math.min(1,v));
+
+function selectPlay(p){
+  current=p; t=0; stop();
+  document.getElementById("desc").textContent=p.desc;
+  [...document.querySelectorAll("#playList li")].forEach(li=>li.classList.toggle("sel",li.dataset.id===p.id));
+  render(0);
+}
+
+function render(time){
+  t=time;
+  // reset to home positions
+  for(const k in players){players[k].x=players[k].hx;players[k].y=players[k].hy;}
+  gPaths.innerHTML=""; gBall.innerHTML=""; gRunner.innerHTML="";
+  if(!current){drawPlayers();return;}
+  let ballPos=null,note="";
+
+  current.steps.forEach(s=>{
+    const [s0,s1]=s.t, f=clamp01((t-s0)/(s1-s0));
+    if(t>=s0) note=s.note||note;
+    // player movement
+    (s.move||[]).forEach(m=>{
+      const pl=players[m.who]; if(!pl) return;
+      const to=resolve(m.to); if(!to) return;
+      const ff=ease(clamp01(f));
+      const sx=pl.hx, sy=pl.hy;
+      if(t>=s0){
+        pl.x=lerp(sx,to.x,ff); pl.y=lerp(sy,to.y,ff);
+        add(gPaths,"line",{x1:sx,y1:sy,x2:pl.x,y2:pl.y,stroke:"#cfe6ff","stroke-width":2.5,opacity:.75});
+      }
+      if(t>=s1){pl.hx=to.x;pl.hy=to.y;}
+    });
+    // ball
+    if(s.ball && t>=s0){
+      const a=resolve(s.ball.from), b=resolve(s.ball.to);
+      if(a&&b){
+        const ff=clamp01(f);
+        const lift=(s.arc||s.throwArc)?Math.sin(ff*Math.PI)*(s.arc?55:22):0;
+        ballPos={x:lerp(a.x,b.x,ff),y:lerp(a.y,b.y,ff)-lift};
+        add(gPaths,"line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"#ffffff","stroke-width":2,"stroke-dasharray":"7 6",opacity:t>s1?.45:.85});
+      }
+    }
+    // runner
+    if(s.runner){
+      const [r0,r1]=s.runner.t||s.t;
+      if(t>=r0){
+        const rf=ease(clamp01((t-r0)/(r1-r0)));
+        const a=resolve(s.runner.from), b=resolve(s.runner.to);
+        const rx=lerp(a.x,b.x,rf), ry=lerp(a.y,b.y,rf);
+        add(gRunner,"line",{x1:a.x,y1:a.y,x2:rx,y2:ry,stroke:"#f5a524","stroke-width":3,opacity:.8});
+        const g=add(gRunner,"g",{});
+        add(g,"circle",{cx:rx,cy:ry,r:13,fill:"#f5a524",stroke:"#3a2a06","stroke-width":2});
+        const tx=add(g,"text",{x:rx,y:ry+4,"text-anchor":"middle","font-size":10,"font-weight":"700",fill:"#3a2a06"});
+        tx.textContent="R";
+      }
+    }
+  });
+
+  drawPlayers();
+  if(ballPos){
+    add(gBall,"circle",{cx:ballPos.x,cy:ballPos.y,r:7,fill:"#fff",stroke:"#c00","stroke-width":1.5});
+  }
+  document.getElementById("desc").textContent=note||current.desc;
+  document.getElementById("scrub").value=Math.round(t*1000);
+}
+
+let last=0;
+function loop(ts){
+  if(!playing)return;
+  if(!last)last=ts;
+  const dt=(ts-last)/1000; last=ts;
+  let nt=t+dt*speed/(DUR/1000);
+  if(nt>=1){nt=1;playing=false;}
+  render(nt);
+  if(playing)raf=requestAnimationFrame(loop); else last=0;
+}
+function start(){if(!current)return;if(t>=1)t=0;resetHome();playing=true;last=0;raf=requestAnimationFrame(loop);}
+function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;}
+function resetHome(){for(const k in players){if(homeStore[k]){players[k].hx=homeStore[k].x;players[k].hy=homeStore[k].y;}}}
+function snapshotHome(){homeStore={};for(const k in players)homeStore[k]={x:players[k].hx,y:players[k].hy};}
+
+/* ---------- UI ---------- */
+function renderList(){
+  const ul=document.getElementById("playList"); ul.innerHTML="";
+  PLAYS.filter(p=>p.type===playType).forEach(p=>{
+    const li=document.createElement("li"); li.dataset.id=p.id;
+    li.innerHTML=`<strong>${p.name}</strong><small>${p.desc}</small>`;
+    li.onclick=()=>{snapshotHome();selectPlay(p);};
+    ul.appendChild(li);
+  });
+  const first=PLAYS.find(p=>p.type===playType);
+  if(first){snapshotHome();selectPlay(first);}
+}
+function rebuild(){buildPlayers();snapshotHome();drawField();if(current){t=0;render(0);}}
+
+document.getElementById("f9").onclick=e=>{tenPlayers=false;tog("#f9,#f10",e.target);rebuild();};
+document.getElementById("f10").onclick=e=>{tenPlayers=true;tog("#f9,#f10",e.target);rebuild();};
+document.querySelectorAll(".depth").forEach(b=>b.onclick=e=>{depth=b.dataset.depth;tog(".depth",b);rebuild();});
+document.querySelectorAll(".ptype").forEach(b=>b.onclick=e=>{playType=b.dataset.type;tog(".ptype",b);renderList();});
+function tog(sel,active){document.querySelectorAll(sel).forEach(x=>x.classList.remove("active"));active.classList.add("active");}
+document.getElementById("reset").onclick=rebuild;
+document.getElementById("play").onclick=start;
+document.getElementById("pause").onclick=stop;
+document.getElementById("restart").onclick=()=>{stop();resetHome();render(0);};
+document.getElementById("speed").oninput=e=>{speed=+e.target.value;document.getElementById("speedLbl").textContent=speed.toFixed(2).replace(/0$/,"")+"×";};
+document.getElementById("scrub").oninput=e=>{stop();resetHome();render(+e.target.value/1000);};
+
+buildPlayers();snapshotHome();drawField();renderList();
+</script>
+</body>
+</html>
