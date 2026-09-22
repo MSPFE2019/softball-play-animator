@@ -514,7 +514,7 @@ function exportPlayCard(){
 function saveCurrentPlayCard(){
   const play=current || getAllPlays()[0];
   if(!play) return;
-  const text=`Play: ${play.name}\nType: ${play.type}\nKey read: ${play.desc}\nCoach cue: ${play.why || 'Use the aligned defense and communicate clearly'}\nSituation: ${play.situ && play.situ.note ? play.situ.note : 'Coach read'}\n`; 
+  const text=`Play: ${play.name}\nType: ${play.type}\nKey read: ${play.desc}\nCoach cue: ${play.why || 'Use the aligned defense and communicate clearly'}\nSituation: ${play.situ && play.situ.note ? play.situ.note : 'Coach read'}\n`;
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).catch(()=>{});
   }
@@ -937,6 +937,16 @@ const GUIDE=`
   </ul>
 </section>
 <section>
+  <h3>Pre-pitch, read, then throw</h3>
+  <p>Good defense is a three-step plan: know your job before the pitch, react to what the batter does, then know the best throw before the ball gets to you. The goal is not to guess perfectly; it is to make sure every player has a safe first job and a clear backup.</p>
+  <ul>
+    <li><strong>Before the pitch:</strong> check the outs, runners, batter, count, and likely play. Point to the base you are covering.</li>
+    <li><strong>On contact:</strong> read the ball first, then move. Call “Mine!” when you are taking it and “Two!” or “One!” when you are choosing the target.</li>
+    <li><strong>After the throw:</strong> back up a base, receive the next throw, or get ready for a second play. Do not stop after the first action.</li>
+  </ul>
+  <p>Use the live read drill to rehearse the same language until the response is automatic. Show it slowly, do it together, then repeat it at game speed.</p>
+</section>
+<section>
   <h3>Bunting: sacrifice vs. squeeze vs. drag</h3>
   <ul>
     <li><strong>Sacrifice bunt</strong> — trades an out to advance a runner. Worth it when one run matters more than a big inning (late innings, close game, weak hitters coming up).</li>
@@ -944,6 +954,17 @@ const GUIDE=`
     <li><strong>Safety squeeze</strong> — runner waits to see the bunt is down before breaking. Slower, but protects the runner if the bunt is missed or popped up.</li>
     <li><strong>Drag/slap bunt</strong> — batter (often a fast slap hitter) bunts for a base hit rather than a sacrifice, exploiting a defense that isn't crashing.</li>
   </ul>
+</section>
+<section>
+  <h3>Bunt-defense communication</h3>
+  <p>When a bunt is likely, the corners charge, the pitcher takes the middle, and the middle infielders cover the bases that are left open. The catcher should confirm the coverage before the pitch and direct the play once the ball is down.</p>
+  <ul>
+    <li><strong>“Mine!”</strong> — the fielder is taking the ball.</li>
+    <li><strong>“Two!”</strong> — try for the lead runner at second when the throw is clean and early.</li>
+    <li><strong>“One!”</strong> — take the sure out at first when the lead play is not available.</li>
+    <li><strong>No call means slow down:</strong> secure the ball and choose the safest out rather than forcing a risky throw.</li>
+  </ul>
+  <p>Practice with a four-corner bunt drill, a quick-reaction “bunt” call, and then a live bunt scrimmage with runners. Start with technique, then add time and decision pressure.</p>
 </section>
 <section>
   <h3>First-and-third: the defense's dilemma</h3>
