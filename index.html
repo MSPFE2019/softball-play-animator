@@ -244,7 +244,7 @@ let voiceEnabled=true;
 let customPlays=[];
 let customEditorId=null;
 let runnerPathMode=false;
-let lastVoiceFrame=-1;
+let lastVoiceStep="";
 let drillIndex=0;
 
 function kidCueText(play){
@@ -265,7 +265,7 @@ function showKidCue(play){
   const text = kidCueText(play);
   const cueEl = document.getElementById('coachDrillText');
   if(cueEl) cueEl.textContent = text;
-  if(voiceEnabled) speakNarration(text);
+  if(voiceEnabled){ resetNarration(); speakNarration(text); }
   return text;
 }
 
@@ -285,26 +285,33 @@ function saveCustomPlays(){ localStorage.setItem(CUSTOM_PLAY_KEY, JSON.stringify
 
 function getAllPlays(){ return [...PLAYS, ...customPlays]; }
 
-function speakNarration(text){
-  if(!voiceEnabled || !('speechSynthesis' in window)) return;
+function speakNarration(text, queue){
+  if(!voiceEnabled || !('speechSynthesis' in window) || !text) return;
   const utterance=new SpeechSynthesisUtterance(text);
   utterance.rate=0.92;
   utterance.pitch=1.05;
   utterance.lang='en-US';
-  window.speechSynthesis.cancel();
+  if(!queue) window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
+}
+
+function resetNarration(){
+  lastVoiceStep="";
+  if('speechSynthesis' in window) window.speechSynthesis.cancel();
 }
 
 function speakPlayStep(play, t){
   if(!voiceEnabled || !play || t<0) return;
-  const step=(play.steps||[]).slice().reverse().find(s=>t>=s.t[0] && t<=s.t[1]);
-  const line = step && step.note ? step.note : (play.desc || play.name);
-  const cue = kidCueText(play) + ' ' + (line || '');
-  const frame = Math.floor(t*20);
-  if(frame!==lastVoiceFrame){
-    lastVoiceFrame=frame;
-    speakNarration(cue);
+  const steps=play.steps||[];
+  let idx=-1;
+  for(let i=steps.length-1;i>=0;i--){
+    if(t>=steps[i].t[0] && t<=steps[i].t[1]){ idx=i; break; }
   }
+  const line = idx>=0 && steps[idx].note ? steps[idx].note : (play.desc || play.name);
+  const key = `${play.id}#${idx}`;
+  if(key===lastVoiceStep) return;
+  lastVoiceStep=key;
+  speakNarration(line, true);
 }
 
 function buildStart(){
@@ -768,7 +775,8 @@ function buildRunners(play){
   return list;
 }
 
-function drawScoreboard(){
+
+function drawScoreboard(){
   const g=add(gBall,"g",{});
   add(g,"rect",{x:18,y:18,width:158,height:60,rx:9,fill:"#0c1420",opacity:.85,stroke:"#243349"});
   add(g,"text",{x:32,y:41,"font-size":12,fill:"#9fb0c6"},"OUTS");
@@ -810,7 +818,7 @@ function loop(ts){
   raf=requestAnimationFrame(loop);
 }
 function play(){if(!current)return;if(t>=1)t=0;if(playing)return;playing=true;last=0;raf=requestAnimationFrame(loop);}
-function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;}
+function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;resetNarration();}
 
 function fitPlay(p){
   if(!p.situ)return null;
@@ -821,10 +829,10 @@ function fitPlay(p){
 
 function selectPlay(p){stop();current=p;t=0;
   [...document.querySelectorAll("#playList li")].forEach(li=>li.classList.toggle("sel",li.dataset.id===p.id));
-  draw();
   const w=document.getElementById("why");
   w.textContent=p.why?("Why: "+p.why):"";
   showKidCue(p);
+  draw();
 }
 
 function renderList(){
@@ -888,6 +896,7 @@ document.getElementById("voiceBtn").onclick=()=>{
   pill.textContent=voiceEnabled?"Voice cues enabled":"Voice cues muted";
   pill.classList.toggle("on",voiceEnabled);
   document.getElementById("voiceBtn").textContent=voiceEnabled?"🔊 Voice on":"🔇 Voice off";
+  resetNarration();
 };
 document.getElementById("pathBtn").onclick=()=>{runnerPathMode=!runnerPathMode; document.getElementById("pathBtn").classList.toggle("active",runnerPathMode); if(current) draw(); };
 document.getElementById("savePlayCard").onclick=saveCurrentPlayCard;
