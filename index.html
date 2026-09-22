@@ -19,6 +19,12 @@
   button:hover{border-color:var(--accent)}
   button.primary{background:var(--accent);color:#1a1207;border-color:var(--accent);font-weight:600}
   button.active{background:var(--accent2);border-color:var(--accent2);color:#04121f;font-weight:600}
+  button.warn{background:#3e2f18;border-color:#9d6b2b;color:#f8d392}
+  .mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .mini-grid button{width:100%}
+  .voice-pill{display:inline-flex;align-items:center;gap:6px;background:#122432;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:11px}
+  .voice-pill.on{color:#caf3ce;border-color:#396d52;background:#132f1f}
+  .coach-cue{display:block;border:1px dashed var(--accent);border-radius:8px;padding:8px 10px;background:#1b1a0d;color:#f8dba3;font-size:12px;line-height:1.5}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row+.row{margin-top:8px}
   label{color:var(--muted);font-size:12px}
   ul.plays{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto}
@@ -89,6 +95,15 @@
         <button data-depth="in" class="depth">Infield In</button>
         <button data-depth="bunt" class="depth">Bunt D</button>
       </div>
+      <div class="row">
+        <label>Align</label>
+        <button data-align="standard" class="align active">Standard</button>
+        <button data-align="shift" class="align">Shift</button>
+      </div>
+      <div class="row">
+        <button data-align="u10" class="align">10U</button>
+        <button data-align="u12" class="align">12U</button>
+      </div>
       <div class="depthcap" id="depthCap"></div>
       <div class="row"><button id="reset">Reset positions</button></div>
     </div>
@@ -117,7 +132,27 @@
         <button data-type="hitting" class="ptype active">Hitting</button>
         <button data-type="bunting" class="ptype">Bunting</button>
       </div>
+      <div class="row">
+        <button id="newCustomPlay">+ Custom play</button>
+        <button id="editCurrentPlay">Edit</button>
+      </div>
       <ul class="plays" id="playList"></ul>
+    </div>
+
+    <div class="card">
+      <h2>Coach tools</h2>
+      <div class="mini-grid">
+        <button id="voiceBtn" class="warn">🔊 Voice on</button>
+        <button id="pathBtn">⇄ Runner path</button>
+        <button id="savePlayCard">Save card</button>
+        <button id="exportPlayCard">Export JSON</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="drillBtn">Live read drill</button>
+        <button id="kidCueBtn">What should they do?</button>
+      </div>
+      <div class="row" style="margin-top:8px"><span id="voiceState" class="voice-pill on">Voice cues enabled</span></div>
+      <div class="row" style="margin-top:8px"><span id="coachDrillText" class="coach-cue">Read the ball. Get to it. Make the right throw.</span></div>
     </div>
 
     <div class="card">
@@ -134,7 +169,7 @@
     </div>
   </div>
 </div>
-<footer>Drag any fielder to adjust alignment — your custom positions are used as the play's starting point.</footer>
+<footer>Drag any fielder to adjust alignment. Use the coach tools to save, narrate, and teach 10U-12U defensive reads.</footer>
 
 <div id="guideOverlay">
   <div id="guidePanel">
@@ -142,6 +177,29 @@
     <h2>📘 Softball Strategy Guide</h2>
     <div class="sub">The "why" behind every call on this field — read this alongside the plays on the left.</div>
     <div id="guideBody"></div>
+  </div>
+</div>
+
+<div id="customPlayOverlay" style="position:fixed;inset:0;background:rgba(4,8,14,.6);display:none;align-items:center;justify-content:center;z-index:60;padding:24px;">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:640px;width:100%;padding:20px 22px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h2 style="margin:0;font-size:18px;">Custom play editor</h2>
+      <button id="closeCustomPlay">✕ Close</button>
+    </div>
+    <div style="display:grid;gap:10px;">
+      <label>Play name<input id="customName" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);"></label>
+      <label>Type<select id="customType" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);">
+        <option value="hitting">Hitting</option>
+        <option value="bunting">Bunting</option>
+      </select></label>
+      <label>Short description<textarea id="customDesc" rows="3" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
+      <label>Coach cue<textarea id="customWhy" rows="3" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
+      <label>Situation note<textarea id="customNote" rows="2" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
+      <div class="row" style="justify-content:flex-end;">
+        <button id="deleteCustomPlay" class="warn" style="display:none;">Delete</button>
+        <button id="saveCustomPlay" class="primary">Save custom play</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -171,10 +229,83 @@ const DEPTH_CAP={
   bunt:"Corners creep in anticipating a bunt. Use it when the runner situation and count make a sacrifice likely (runner on 1st/2nd, 0-1 outs) — leaves the defense vulnerable to a hard-hit ball."
 };
 const ORDER=["P","C","1B","2B","SS","3B","LF","CF","RF"];
+const CUSTOM_PLAY_KEY="softball-play-animator.custom-plays";
+const ALIGNMENTS={
+  standard:{label:"Standard", players:{}, note:"Default 9-player spacing with the normal infield and outfield lanes."},
+  shift:{label:"Shifted", players:{"1B":{x:470,y:548},"3B":{x:330,y:548},"2B":{x:450,y:470},"SS":{x:350,y:470},"C":{x:400,y:660}}, note:"Infield shifts toward the pull side to take away the bunt or middle gap."},
+  u10:{label:"10U hands-on", players:{"LF":{x:160,y:250},"CF":{x:300,y:195},"RF":{x:645,y:250},"RC":{x:520,y:200},"1B":{x:485,y:540},"3B":{x:315,y:540}}, note:"Younger players benefit from a more compact, teachable alignment with extra outfield coverage."},
+  u12:{label:"12U aggressive", players:{"1B":{x:485,y:528},"3B":{x:315,y:528},"2B":{x:470,y:430},"SS":{x:330,y:430},"CF":{x:410,y:200},"RF":{x:610,y:255}}, note:"More aggressive corners and a deeper center field read for strong, athletic 12U teams."}
+};
 
-let tenPlayers=false,depth="normal",playType="hitting";
+let tenPlayers=false,depth="normal",playType="hitting",alignment="standard";
 let onBase=new Set(),outs=0;
 let start={};   // starting position per player (user-draggable)
+let voiceEnabled=true;
+let customPlays=[];
+let customEditorId=null;
+let runnerPathMode=false;
+let lastVoiceFrame=-1;
+let drillIndex=0;
+
+function kidCueText(play){
+  if(!play) return 'Read the ball. Get to it. Make the right throw.';
+  const name = (play.name || '').toLowerCase();
+  if(name.includes('double play') || name.includes('ground ball')) return 'Read the ball. Step in. Get the ball out front. Throw to second, then finish the play.';
+  if(name.includes('left') || name.includes('right') || name.includes('gap')) return 'Take the ball in your zone. Charge the ball. Get it to the cutoff. Throw to the right base.';
+  if(name.includes('first-and-third') || name.includes('throw-through')) return 'Hold the runner. Get the throw to second. Keep your eyes on the runner at third.';
+  if(name.includes('bases loaded') || name.includes('force at home')) return 'Get the ball. Take the force at home. Make the tag before the runner gets there.';
+  if(name.includes('pickle') || name.includes('rundown')) return 'Chase the runner. Keep the ball low. Run them toward the tag and finish the play.';
+  if(name.includes('hit-and-run') || name.includes('runner going')) return 'Listen for the sign. Read the pitch. Get the ball moving and protect the runner.';
+  if(name.includes('squeeze') || name.includes('bunt')) return 'Read the bunt. Get ready early. Field it clean and make the throw to the right base.';
+  if(name.includes('drag')) return 'Crash on the bunt. Cover your base. Finish the play with a quick throw.';
+  return 'Read the ball. Get to it. Make a smart throw and finish the play.';
+}
+
+function showKidCue(play){
+  const text = kidCueText(play);
+  const cueEl = document.getElementById('coachDrillText');
+  if(cueEl) cueEl.textContent = text;
+  if(voiceEnabled) speakNarration(text);
+  return text;
+}
+
+function nextLiveDrill(){
+  const plays = getAllPlays();
+  const next = plays[(drillIndex++) % Math.max(1, plays.length)] || plays[0];
+  if(current !== next) selectPlay(next);
+  return showKidCue(next);
+}
+
+function loadCustomPlays(){
+  try { const val=JSON.parse(localStorage.getItem(CUSTOM_PLAY_KEY)||"[]"); return Array.isArray(val)?val:[]; }
+  catch { return []; }
+}
+
+function saveCustomPlays(){ localStorage.setItem(CUSTOM_PLAY_KEY, JSON.stringify(customPlays)); }
+
+function getAllPlays(){ return [...PLAYS, ...customPlays]; }
+
+function speakNarration(text){
+  if(!voiceEnabled || !('speechSynthesis' in window)) return;
+  const utterance=new SpeechSynthesisUtterance(text);
+  utterance.rate=0.92;
+  utterance.pitch=1.05;
+  utterance.lang='en-US';
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+function speakPlayStep(play, t){
+  if(!voiceEnabled || !play || t<0) return;
+  const step=(play.steps||[]).slice().reverse().find(s=>t>=s.t[0] && t<=s.t[1]);
+  const line = step && step.note ? step.note : (play.desc || play.name);
+  const cue = kidCueText(play) + ' ' + (line || '');
+  const frame = Math.floor(t*20);
+  if(frame!==lastVoiceFrame){
+    lastVoiceFrame=frame;
+    speakNarration(cue);
+  }
+}
 
 function buildStart(){
   const keys=ORDER.concat(tenPlayers?["RC"]:[]);
@@ -339,6 +470,141 @@ const PLAYS=[
  ],runners:[{from:"@H",to:"@1",t:[.14,.75]}]}
 ];
 
+function buildStart(){
+  const keys=ORDER.concat(tenPlayers?["RC"]:[]);
+  start={};
+  keys.forEach(k=>{
+    const base=BASE_POS[k];
+    const shift=ALIGNMENTS[alignment]&&ALIGNMENTS[alignment].players&&ALIGNMENTS[alignment].players[k];
+    const depthMove=(DEPTH_ADJ[depth]||{})[k];
+    const x=(depthMove&&depthMove.x) ?? (shift&&shift.x) ?? base.x;
+    const y=(depthMove&&depthMove.y) ?? (shift&&shift.y) ?? base.y;
+    start[k]={x,y,label:k};
+  });
+}
+
+function updateAlignmentCap(){
+  const info=ALIGNMENTS[alignment]||ALIGNMENTS.standard;
+  document.getElementById("depthCap").textContent = `${DEPTH_CAP[depth] || ""} ${info.note}`.trim();
+}
+
+function exportPlayCard(){
+  const play=current || getAllPlays()[0];
+  if(!play) return;
+  const payload={
+    name:play.name,
+    type:play.type,
+    description:play.desc,
+    coachCue:play.why,
+    situation: play.situ || {},
+    exportDate:new Date().toISOString(),
+    alignment,
+    depth,
+    tenPlayers,
+    notes: play.steps ? play.steps.map(s=>s.note).filter(Boolean) : []
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`${play.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'softball-play'}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+function saveCurrentPlayCard(){
+  const play=current || getAllPlays()[0];
+  if(!play) return;
+  const text=`Play: ${play.name}\nType: ${play.type}\nKey read: ${play.desc}\nCoach cue: ${play.why || 'Use the aligned defense and communicate clearly'}\nSituation: ${play.situ && play.situ.note ? play.situ.note : 'Coach read'}\n`; 
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).catch(()=>{});
+  }
+  speakNarration(`${play.name}. ${play.desc}. ${play.why || ''}`);
+  alert('Play card copied to clipboard and voice cue ready.');
+}
+
+function openCustomEditor(play){
+  const overlay=document.getElementById('customPlayOverlay');
+  const form={
+    name:document.getElementById('customName'),
+    type:document.getElementById('customType'),
+    desc:document.getElementById('customDesc'),
+    why:document.getElementById('customWhy'),
+    note:document.getElementById('customNote')
+  };
+  const deleteBtn=document.getElementById('deleteCustomPlay');
+  if(play){
+    customEditorId=play.id;
+    form.name.value=play.name||'';
+    form.type.value=play.type||'hitting';
+    form.desc.value=play.desc||'';
+    form.why.value=play.why||'';
+    form.note.value=(play.situ&&play.situ.note)||'';
+    deleteBtn.style.display = customPlays.some(p=>p.id===play.id) ? 'inline-block' : 'none';
+  } else {
+    customEditorId=null;
+    form.name.value='';
+    form.type.value='hitting';
+    form.desc.value='';
+    form.why.value='';
+    form.note.value='';
+    deleteBtn.style.display='none';
+  }
+  overlay.style.display='flex';
+}
+
+function closeCustomEditor(){
+  document.getElementById('customPlayOverlay').style.display='none';
+}
+
+function saveCustomPlayFromEditor(){
+  const overlay=document.getElementById('customPlayOverlay');
+  const form={
+    name:document.getElementById('customName').value.trim(),
+    type:document.getElementById('customType').value,
+    desc:document.getElementById('customDesc').value.trim(),
+    why:document.getElementById('customWhy').value.trim(),
+    note:document.getElementById('customNote').value.trim()
+  };
+  if(!form.name || !form.desc){
+    alert('Give the custom play a name and description before saving.');
+    return;
+  }
+  const item={
+    id: customEditorId || `custom-${Date.now()}`,
+    type:form.type,
+    name:form.name,
+    desc:form.desc,
+    why:form.why || 'Teach the players to communicate, get to the ball, and finish the play with the correct throw.',
+    situ:{need:[],outsLt:3,note:form.note || 'Use this for a teaching rep in a similar game situation.'},
+    steps:[
+      {t:[0,.12],ball:{from:'P',to:{x:400,y:642}},note:'Pitch is on the way'},
+      {t:[.12,.5],ball:{from:{x:400,y:642},to:'SS'},note:'Defense reads the ball and gets to the right base'},
+      {t:[.5,1],note:'Finish the play with a clean catch and throw'}
+    ],
+    runners:[]
+  };
+  if(customEditorId && customPlays.some(p=>p.id===customEditorId)){
+    const idx=customPlays.findIndex(p=>p.id===customEditorId);
+    if(idx>=0) customPlays[idx]=item;
+  } else {
+    customPlays.push(item);
+    customEditorId=item.id;
+  }
+  saveCustomPlays();
+  closeCustomEditor();
+  renderList();
+  updateSuggestions();
+}
+
+function deleteCustomPlayFromEditor(){
+  if(!customEditorId) return;
+  customPlays=customPlays.filter(p=>p.id!==customEditorId);
+  saveCustomPlays();
+  closeCustomEditor();
+  renderList();
+  updateSuggestions();
+}
+
 /* ---- Rendering ---- */
 let gField,gPaths,gRunners,gPlayers,gBall;
 const el=n=>document.createElementNS(NS,n);
@@ -450,8 +716,34 @@ function render(play,t){
 
   for(const k in pos)drawPlayer(k,pos[k].x,pos[k].y);
   if(ball)add(gBall,"circle",{cx:ball.x,cy:ball.y,r:7,fill:"#fff",stroke:"#c00","stroke-width":1.5});
+  if(runnerPathMode && play && play.runners && play.runners.length){
+    const runPath = buildRunners(play);
+    runPath.forEach((r,i)=>{
+      const from=resolve(r.from,pos); const to=resolve(r.to,pos);
+      if(!from || !to) return;
+      const g=add(gRunners,"g",{});
+      add(g,"circle",{cx:from.x,cy:from.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
+      add(g,"circle",{cx:to.x,cy:to.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
+      g.addEventListener('pointerdown', ev=>{
+        ev.stopPropagation();
+        const handle = ev.target; const drag = (evt)=>{
+          const pt=toSvg(evt);
+          if(handle.getAttribute('cx')===String(from.x) && handle.getAttribute('cy')===String(from.y)) {
+            r.from={x:pt.x,y:pt.y};
+          } else {
+            r.to={x:pt.x,y:pt.y};
+          }
+          render(play,t);
+        };
+        const stop=()=>{window.removeEventListener('pointermove',drag);window.removeEventListener('pointerup',stop);};
+        window.addEventListener('pointermove',drag);
+        window.addEventListener('pointerup',stop);
+      });
+    });
+  }
   drawScoreboard();
   document.getElementById("desc").textContent=note;
+  speakPlayStep(play,t);
 }
 
 function buildRunners(play){
@@ -532,37 +824,44 @@ function selectPlay(p){stop();current=p;t=0;
   draw();
   const w=document.getElementById("why");
   w.textContent=p.why?("Why: "+p.why):"";
+  showKidCue(p);
 }
 
 function renderList(){
   const ul=document.getElementById("playList");ul.innerHTML="";
-  const list=PLAYS.filter(p=>p.type===playType);
+  const list=getAllPlays().filter(p=>p.type===playType);
   list.forEach(p=>{
     const li=document.createElement("li");li.dataset.id=p.id;
     const fit=fitPlay(p);
     const badge=fit?`<span class="fit-badge ${fit.ok?"fit-good":"fit-bad"}">${fit.ok?"FITS NOW":"OFF-SITUATION"}</span>`:"";
-    li.innerHTML=`<strong>${p.name}${badge}</strong><small>${p.desc}</small>${fit&&fit.note?`<small class="why">${fit.note}</small>`:""}`;
+    const customMarker = p.id && String(p.id).startsWith('custom-') ? ' ✨ ' : ' ';
+    li.innerHTML=`<strong>${customMarker}${p.name}${badge}</strong><small>${p.desc}</small>${fit&&fit.note?`<small class="why">${fit.note}</small>`:""}`;
     li.onclick=()=>selectPlay(p);ul.appendChild(li);
   });
-  if(list.length && (!current || current.type!==playType))selectPlay(list[0]);
+  if(list.length && (!current || current.type!==playType || !list.some(p=>p.id===current.id)))selectPlay(list[0]);
   updateSuggestions();
 }
 
 function updateSuggestions(){
   const box=document.getElementById("suggestBox");
-  const fitting=PLAYS.filter(p=>p.situ&&fitPlay(p).ok);
+  const fitting=getAllPlays().filter(p=>p.situ&&fitPlay(p).ok);
   if(!fitting.length){box.innerHTML="";return;}
   const names=fitting.slice(0,3).map(p=>p.name.split(" — ")[0]).join(", ");
   box.innerHTML=`<div class="suggest">💡 With this situation, consider: <strong>${names}</strong></div>`;
 }
 
 function rebuild(){stop();buildStart();drawField();t=0;draw();updateDepthCap();}
-function updateDepthCap(){document.getElementById("depthCap").textContent=DEPTH_CAP[depth]||"";}
+function updateDepthCap(){
+  const info=ALIGNMENTS[alignment]||ALIGNMENTS.standard;
+  document.getElementById("depthCap").textContent = `${DEPTH_CAP[depth] || ""} ${info.note}`.trim();
+}
 
 const tog=(sel,b)=>{document.querySelectorAll(sel).forEach(x=>x.classList.remove("active"));b.classList.add("active");};
+customPlays=loadCustomPlays();
 document.getElementById("f9").onclick=e=>{tenPlayers=false;tog(".fnum",e.currentTarget);rebuild();};
 document.getElementById("f10").onclick=e=>{tenPlayers=true;tog(".fnum",e.currentTarget);rebuild();};
 document.querySelectorAll(".depth").forEach(b=>b.onclick=()=>{depth=b.dataset.depth;tog(".depth",b);rebuild();});
+document.querySelectorAll(".align").forEach(b=>b.onclick=()=>{alignment=b.dataset.align;tog(".align",b);rebuild();});
 document.querySelectorAll(".ptype").forEach(b=>b.onclick=()=>{playType=b.dataset.type;tog(".ptype",b);renderList();});
 document.querySelectorAll(".rb").forEach(b=>b.onclick=()=>{
   const k=b.dataset.base;
@@ -583,6 +882,24 @@ document.getElementById("pause").onclick=stop;
 document.getElementById("restart").onclick=()=>{stop();t=0;draw();};
 document.getElementById("speed").oninput=e=>{speed=+e.target.value;document.getElementById("speedLbl").textContent=speed+"×";};
 document.getElementById("scrub").oninput=e=>{stop();t=+e.target.value/1000;render(current,t);};
+document.getElementById("voiceBtn").onclick=()=>{
+  voiceEnabled=!voiceEnabled;
+  const pill=document.getElementById("voiceState");
+  pill.textContent=voiceEnabled?"Voice cues enabled":"Voice cues muted";
+  pill.classList.toggle("on",voiceEnabled);
+  document.getElementById("voiceBtn").textContent=voiceEnabled?"🔊 Voice on":"🔇 Voice off";
+};
+document.getElementById("pathBtn").onclick=()=>{runnerPathMode=!runnerPathMode; document.getElementById("pathBtn").classList.toggle("active",runnerPathMode); if(current) draw(); };
+document.getElementById("savePlayCard").onclick=saveCurrentPlayCard;
+document.getElementById("exportPlayCard").onclick=exportPlayCard;
+document.getElementById("drillBtn").onclick=()=>{nextLiveDrill();};
+document.getElementById("kidCueBtn").onclick=()=>{showKidCue(current || getAllPlays()[0]);};
+document.getElementById("newCustomPlay").onclick=()=>openCustomEditor();
+document.getElementById("editCurrentPlay").onclick=()=>{if(current)openCustomEditor(current);};
+document.getElementById("saveCustomPlay").onclick=saveCustomPlayFromEditor;
+document.getElementById("deleteCustomPlay").onclick=deleteCustomPlayFromEditor;
+document.getElementById("closeCustomPlay").onclick=closeCustomEditor;
+document.getElementById("customPlayOverlay").addEventListener("click",e=>{if(e.target.id==="customPlayOverlay")closeCustomEditor();});
 
 /* ---- Strategy Guide ---- */
 const GUIDE=`
