@@ -8,6 +8,6 @@ Single self-contained `index.html` - no build, no dependencies.
 
 Features:
 - large 10U situation cards
-- simple SVG animations for each defensive read
+- simple SVG animations for each defensive read, including players yelling "bunt" and outfielders stepping in to support
 - coach cue for every situation
 - four-question teaching loop: who gets the ball, who covers the base, where is the throw, and is it a force or tag

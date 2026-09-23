@@ -235,13 +235,13 @@ const SITUATIONS = [
     id: "bunt-empty",
     title: "Bunt defense - no runners",
     badge: "Bunt",
-    summary: "Corners crash, 2B covers first, throw goes to first.",
-    cue: "Call: Ball, ball, ball. Corners crash. 2B covers first. Take the easy out at first.",
+    summary: "Everyone yells bunt. Corners crash, 2B covers first, outfielders step in.",
+    cue: "Everyone yells bunt. Corners crash. 2B covers first. Outfielders come up to back up the play.",
     why: "With no runners on, there is no lead runner to stop. The simple answer is field the bunt and throw to first.",
     bases: [],
     steps: [
       { label: "Pitch is bunted softly in front of the plate.", t: [0, .18], ball: ["P", { x: 430, y: 595 }] },
-      { label: "1B and 3B crash. 2B runs to cover first.", t: [.18, .46], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["P", { x: 410, y: 570 }]] },
+      { label: "Everyone yells bunt. Corners crash, 2B covers first, outfielders step in.", t: [.18, .46], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["P", { x: 410, y: 570 }], ["LF", { x: 230, y: 330 }], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
       { label: "Field it clean, throw to first for one sure out.", t: [.46, .76], ball: [{ x: 448, y: 588 }, B1] },
       { label: "Finish: out at first.", t: [.76, 1] }
     ],
@@ -251,15 +251,15 @@ const SITUATIONS = [
     id: "bunt-runner-first",
     title: "Bunt - runner on 1st",
     badge: "Right base",
-    summary: "If clean, get the lead out at second. If not clean, take first.",
-    cue: "Call before the pitch: if it is clean, go two. If it is bobbled, go one.",
-    why: "The runner on first is forced to run. Touching second with the ball beats the lead runner without needing a tag.",
+    summary: "Yell bunt, cover first, and get the sure out at first.",
+    cue: "Everyone yells bunt. Corners crash. 2B covers first. SS covers second. Outfielders come up. Throw to first for the sure out.",
+    why: "For 10U bunt defense, the priority is a clean, repeatable out. The runner on first may advance, but the defense should field the bunt, cover first, and get one sure out.",
     bases: ["1B"],
     steps: [
       { label: "Bunt goes toward first base.", t: [0, .18], ball: ["P", { x: 452, y: 590 }] },
-      { label: "1B charges. SS covers second. 2B covers first.", t: [.18, .48], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }]] },
-      { label: "Clean field: throw to second for the force.", t: [.48, .74], ball: [{ x: 452, y: 590 }, B2] },
-      { label: "Finish: lead runner out at second.", t: [.74, 1] }
+      { label: "Everyone yells bunt. Corners crash, SS covers second, outfielders come up.", t: [.18, .48], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }], ["LF", { x: 230, y: 330 }], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
+      { label: "2B is on first. Throw to first for the sure out.", t: [.48, .74], ball: [{ x: 452, y: 590 }, B1] },
+      { label: "Finish: out at first, runner advances to second.", t: [.74, 1] }
     ],
     runners: [
       { from: B1, to: B2, t: [.18, .78] },
@@ -270,13 +270,13 @@ const SITUATIONS = [
     id: "bunt-runner-second",
     title: "Bunt - runner on 2nd",
     badge: "Tag read",
-    summary: "Runner is not forced. Check her, then throw to first unless she breaks.",
-    cue: "Look the runner back. Throw to first. If she runs at you, tag or run her back.",
+    summary: "Yell bunt, check the runner, then throw to first unless she breaks.",
+    cue: "Everyone yells bunt. Check the runner. Throw to first. If she runs at you, tag or run her back.",
     why: "A runner on second is not forced when first base is empty. To get her out, the defense must tag the runner.",
     bases: ["2B"],
     steps: [
       { label: "Bunt is down toward third base.", t: [0, .18], ball: ["P", { x: 355, y: 590 }] },
-      { label: "3B fields. SS covers third. 2B covers first.", t: [.18, .48], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }]] },
+      { label: "Everyone yells bunt. 3B fields, SS covers third, 2B covers first, outfielders step in.", t: [.18, .48], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }], ["LF", { x: 230, y: 330 }], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
       { label: "3B checks the runner, then throws to first.", t: [.48, .76], ball: [{ x: 355, y: 590 }, B1] },
       { label: "Finish: sure out at first, runner held.", t: [.76, 1] }
     ],
