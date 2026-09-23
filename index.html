@@ -349,10 +349,11 @@ const SITUATIONS = [
     why: "On a ball to the left side, SS cannot stand still. She supports the 3B side, while 2B owns second so the middle base is still covered.",
     bases: ["1B"],
     steps: [
-      { label: "Ground ball is hit to the 3B side.", t: [0, .22], ball: ["P", { x: 308, y: 548 }] },
-      { label: "3B fields it. SS supports the third-base side. 2B covers second.", t: [.22, .52], move: [["3B", { x: 308, y: 548 }], ["SS", { x: 292, y: 492 }], ["2B", B2], ["1B", B1], ["LF", { x: 245, y: 345 }]] },
-      { label: "Throw across to first for the sure out.", t: [.52, .78], ball: [{ x: 308, y: 548 }, B1] },
-      { label: "Finish: 2B covered second, SS backed up the left side.", t: [.78, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: ["P", { x: 400, y: 642 }] },
+      { label: "Ground ball is hit from the plate to the 3B side.", t: [.12, .30], ball: [{ x: 400, y: 642 }, { x: 308, y: 548 }] },
+      { label: "3B fields it. SS supports the third-base side. 2B covers second.", t: [.30, .56], move: [["3B", { x: 308, y: 548 }], ["SS", { x: 292, y: 492 }], ["2B", B2], ["1B", B1], ["LF", { x: 245, y: 345 }]] },
+      { label: "Throw across to first for the sure out.", t: [.56, .80], ball: [{ x: 308, y: 548 }, B1] },
+      { label: "Finish: 2B covered second, SS backed up the left side.", t: [.80, 1] }
     ],
     runners: [
       { from: B1, to: B2, t: [.22, .8] },
