@@ -25,6 +25,8 @@
   .voice-pill{display:inline-flex;align-items:center;gap:6px;background:#122432;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:11px}
   .voice-pill.on{color:#caf3ce;border-color:#396d52;background:#132f1f}
   .coach-cue{display:block;border:1px dashed var(--accent);border-radius:8px;padding:8px 10px;background:#1b1a0d;color:#f8dba3;font-size:12px;line-height:1.5}
+  .job-panel{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#102131;color:#cfe6ff;font-size:12px;line-height:1.5}
+  .job-panel strong{color:#fff}
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row+.row{margin-top:8px}
   label{color:var(--muted);font-size:12px}
   ul.plays{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto}
@@ -152,9 +154,17 @@
         <button id="kidCueBtn">What should they do?</button>
       </div>
       <div class="row" style="margin-top:8px">
-        <label for="voicePosition">Teach</label>
+        <label for="voiceMode">Voice</label>
+        <select id="voiceMode" aria-label="Voice coaching mode">
+          <option value="off">Off</option>
+          <option value="coach">Coach</option>
+          <option value="playbyplay">Play-by-Play</option>
+          <option value="player">Player</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label for="voicePosition">Position</label>
         <select id="voicePosition" aria-label="Position to teach">
-          <option value="COACH">Coach overview</option>
           <option value="P">Pitcher</option>
           <option value="C">Catcher</option>
           <option value="1B">First base</option>
@@ -167,8 +177,20 @@
           <option value="RC">Right-center</option>
         </select>
       </div>
+      <div class="row" style="margin-top:8px">
+        <label for="speechRate">Speech</label>
+        <select id="speechRate" aria-label="Speech speed">
+          <option value="slow">Slow</option>
+          <option value="normal">Normal</option>
+          <option value="fast">Fast</option>
+        </select>
+        <select id="voiceName" aria-label="Browser voice">
+          <option value="">Default browser voice</option>
+        </select>
+      </div>
       <div class="row" style="margin-top:8px"><span id="voiceState" class="voice-pill on">Voice cues enabled</span></div>
       <div class="row" style="margin-top:8px"><span id="coachDrillText" class="coach-cue">Read the ball. Get to it. Make the right throw.</span></div>
+      <div class="row" style="margin-top:8px"><span id="jobPanel" class="job-panel"></span></div>
     </div>
 
     <div class="card">
@@ -211,6 +233,9 @@
       <label>Short description<textarea id="customDesc" rows="3" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
       <label>Coach cue<textarea id="customWhy" rows="3" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
       <label>Situation note<textarea id="customNote" rows="2" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
+      <label>Voice coach introduction<textarea id="customVoiceIntro" rows="2" placeholder="Example: Runner on first with one out. Be ready for the force at second." style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
+      <label>Position instructions (JSON)<textarea id="customVoicePlayers" rows="4" placeholder='{"SS":"Charge and field out front.","2B":"Cover second and show a target."}' style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;font-family:monospace;"></textarea></label>
+      <label>Timeline voice cues (JSON)<textarea id="customVoiceTimeline" rows="4" placeholder='[{"at":0.2,"text":"Ball to short.","priority":"critical"}]' style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;font-family:monospace;"></textarea></label>
       <div class="row" style="justify-content:flex-end;">
         <button id="deleteCustomPlay" class="warn" style="display:none;">Delete</button>
         <button id="saveCustomPlay" class="primary">Save custom play</button>
@@ -256,16 +281,74 @@ const ALIGNMENTS={
 let tenPlayers=false,depth="normal",playType="hitting",alignment="standard";
 let onBase=new Set(),outs=0;
 let start={};   // starting position per player (user-draggable)
-let voiceEnabled=true;
+const VOICE_SETTINGS_KEY="softball-play-animator.voice-settings";
+let voiceMode="coach";
+let voicePosition="SS";
+let speechRate="normal";
+let voiceName="";
+let voiceSupported="speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
 let customPlays=[];
 let customEditorId=null;
 let customEditorSourceId=null;
 let runnerPathMode=false;
-let voicePosition="COACH";
 let lastVoiceStepKey="";
+let spokenVoiceSteps=new Set();
 let drillIndex=0;
 
 const POSITION_NAMES={P:"pitcher",C:"catcher","1B":"first baseman","2B":"second baseman",SS:"shortstop","3B":"third baseman",LF:"left fielder",CF:"center fielder",RF:"right fielder",RC:"right-center fielder"};
+const RATE_VALUES={slow:.78,normal:.92,fast:1.05};
+const VOICE_DATA={
+  h1:{coachIntro:"Ground ball to shortstop.",playerInstructions:{SS:"Charge the ground ball. Field it out front. Your first read is second. Flip to second and clear the throwing lane.","2B":"Cover second. Show your shortstop a target. Catch, turn, and get ready to throw one.","1B":"Get to first. Find the bag and show a target.","CF":"Back up second. Keep a bad throw in front of you."},timeline:[{at:.12,text:"Ball to short.",priority:"critical"},{at:.22,text:"Second base, cover two.",priority:"critical"},{at:.34,text:"Flip to second.",priority:"critical"},{at:.5,text:"Turn and throw one.",priority:"critical"}]},
+  h2:{coachIntro:"Base hit to left. The shortstop is the cutoff and the play is at second.",playerInstructions:{LF:"Get behind the ball. Hit the cutoff with a strong throw.","SS":"Set the cutoff lane. Catch it and turn the throw to second.","2B":"Get to second. Give the cutoff a target and be ready for the runner.","CF":"Back up left field and keep the ball in front."},timeline:[{at:.15,text:"Ball to left.",priority:"critical"},{at:.3,text:"Shortstop, get to the cutoff.",priority:"normal"},{at:.55,text:"Ball to second.",priority:"critical"}]},
+  h3:{coachIntro:"Fly ball to right with a runner on third. The runner may tag, so the cutoff and home are ready.",playerInstructions:{RF:"Catch the fly ball. Set your feet and throw to the cutoff.","2B":"Line up the cutoff. Catch, turn, and send it home.",C:"Get set at home. Read the runner and secure the throw.",CF:"Back up right field and the relay."},timeline:[{at:.15,text:"Fly ball to right.",priority:"critical"},{at:.35,text:"Second base, get the cutoff.",priority:"normal"},{at:.55,text:"Runner tags. Throw comes in.",priority:"critical"},{at:.7,text:"Cut and fire home.",priority:"critical"}]},
+  h4:{coachIntro:"Ten-player gap coverage. Right-center takes the ball and second base is the relay.",playerInstructions:{RC:"Run through the gap and keep the ball in front.","CF":"Read the gap and back up right-center.","RF":"Protect the right-field line and back up the gap.","2B":"Get into the relay lane and show a target.","SS":"Cover second for the runner."},timeline:[{at:.15,text:"Ball splits the gap.",priority:"critical"},{at:.3,text:"Right-center, take it. Second base, get the relay.",priority:"critical"},{at:.55,text:"Relay to the middle.",priority:"normal"},{at:.7,text:"Ball to second.",priority:"critical"}]},
+  h5:{coachIntro:"First and third with less than two outs. Protect the runner at third while covering the steal.",playerInstructions:{C:"Check the runner at third. Communicate the throw-through plan.","2B":"Cheat into the lane and be ready for the throw.","SS":"Cover second and watch the runner at third.",P:"Stay alert to third. Square up after the throw."},timeline:[{at:.1,text:"Runner breaks.",priority:"critical"},{at:.25,text:"Shortstop, cover two. Second base, get in the lane.",priority:"critical"},{at:.45,text:"Hold the runner at third.",priority:"critical"}]},
+  h6:{coachIntro:"Bases loaded. The force is available at home. Get the lead out first.",playerInstructions:{C:"This is a force. Get one foot on home, secure the ball, and do not tag.","3B":"Field the ball and get it home quickly.",P:"Back up home and be ready for the next throw.","1B":"Cover first after the ball is fielded.","2B":"Cover second and stay ready for the next play.","SS":"Protect the middle and be ready for a second play."},timeline:[{at:.15,text:"Ground ball to third.",priority:"critical"},{at:.35,text:"Get the lead out at home.",priority:"critical"},{at:.55,text:"Force at home. No tag needed.",priority:"critical"}]},
+  h7:{coachIntro:"Rundown between second and third. Use one short throw and run the runner toward the tag.",playerInstructions:{SS:"Close the gap. Run the runner toward third and throw late.","3B":"Hold third, receive the throw, and finish the tag.",P:"Back up the rundown and watch for an extra runner."},timeline:[{at:.15,text:"Runner is caught.",priority:"critical"},{at:.3,text:"Run her toward third.",priority:"critical"},{at:.5,text:"Close for the tag.",priority:"critical"}]},
+  h8:{coachIntro:"Hit and run. The runner goes with the pitch and the batter protects her.",playerInstructions:{SS:"Read the ground ball and range through the hole.","3B":"Cover third and be ready for the runner.","2B":"Cover second and watch the runner going.","CF":"Back up the left side and keep the ball in front."},timeline:[{at:.12,text:"Runner goes.",priority:"critical"},{at:.3,text:"Protect the runner.",priority:"critical"},{at:.5,text:"Long throw across.",priority:"normal"}]},
+  b1:{coachIntro:"Sacrifice bunt with a runner on first. Corners charge and the middle infield covers the bags.",playerInstructions:{"1B":"Charge the bunt under control.","2B":"Cover first. Show a target.","SS":"Cover second for the force.","3B":"Charge and be ready for a bunt your way.",P:"Back up the middle."},timeline:[{at:.15,text:"Read bunt.",priority:"critical"},{at:.25,text:"First base, charge. Second base, cover one.",priority:"critical"},{at:.45,text:"Take the safest out.",priority:"critical"}]},
+  b2:{coachIntro:"Bunt to the third-base side. Third base fields, shortstop covers third, and second base covers first.",playerInstructions:{"3B":"Crash hard and field the bunt clean.","SS":"Rotate to third and be ready for the runner.","2B":"Cover first and show a target.","1B":"Charge under control and be ready to return to the bag.",P:"Back up the bunt."},timeline:[{at:.15,text:"Bunt to third.",priority:"critical"},{at:.3,text:"Third base, take it. Shortstop, cover three.",priority:"critical"},{at:.55,text:"Throw to first.",priority:"critical"}]},
+  b3:{coachIntro:"Suicide squeeze. The runner breaks early, so the defense must field the bunt and protect home.",playerInstructions:{P:"Attack the bunt and make the safest throw.",C:"Set up at home. Secure the ball and make the play.","1B":"Crash and cover the bunt lane.","3B":"Crash the third-base side.","2B":"Cover first.","SS":"Cover second."},timeline:[{at:.05,text:"Runner breaks.",priority:"critical"},{at:.15,text:"Bunt back to the pitcher.",priority:"critical"},{at:.4,text:"Protect home.",priority:"critical"}]},
+  b5:{coachIntro:"Safety squeeze. The runner waits until the bunt is safe before breaking.",playerInstructions:{C:"Read the bunt and direct the play at home.","1B":"Charge the bunt and keep the runner in sight.",P:"Field the bunt and look for the safest out.","2B":"Cover first."},timeline:[{at:.15,text:"Bunt is down.",priority:"critical"},{at:.3,text:"Runner breaks late.",priority:"critical"},{at:.5,text:"Choose the safest out.",priority:"normal"}]},
+  b4:{coachIntro:"Wheel play with runners on first and second. Both corners crash and the middle infield rotates.",playerInstructions:{"1B":"Crash the bunt.","3B":"Crash the bunt and field it clean.","SS":"Cover third.","2B":"Cover first.",P:"Back up the middle."},timeline:[{at:.12,text:"Wheel rotation.",priority:"critical"},{at:.25,text:"Corners crash. Middle infield covers.",priority:"critical"},{at:.5,text:"Throw to first.",priority:"critical"}]}
+};
+
+function loadVoiceSettings(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(VOICE_SETTINGS_KEY)||"{}");
+    if(["off","coach","playbyplay","player"].includes(saved.mode))voiceMode=saved.mode;
+    if(POSITION_NAMES[saved.position])voicePosition=saved.position;
+    if(["slow","normal","fast"].includes(saved.rate))speechRate=saved.rate;
+    if(typeof saved.voiceName==="string")voiceName=saved.voiceName;
+  }catch{}
+}
+function saveVoiceSettings(){localStorage.setItem(VOICE_SETTINGS_KEY,JSON.stringify({mode:voiceMode,position:voicePosition,rate:speechRate,voiceName}));}
+function cancelSpeech(){if(voiceSupported)window.speechSynthesis.cancel();}
+function resetVoiceState(){lastVoiceStepKey="";spokenVoiceSteps=new Set();}
+function getGameSituation(){return {outs,runners:{first:onBase.has("@1"),second:onBase.has("@2"),third:onBase.has("@3")},formation:tenPlayers?10:9};}
+function getSituationSummary(){
+  const s=getGameSituation(), bases=Object.entries(s.runners).filter(([,on])=>on).map(([base])=>base);
+  const runnerText=bases.length===0?"bases empty":`runner${bases.length>1?"s":""} on ${bases.join(" and ")}`;
+  return `${runnerText} with ${s.outs} out${s.outs===1?"":"s"}.`;
+}
+function getPlayVoice(play){
+  const voice=play && play.voice ? play.voice : {};
+  const data=play && (VOICE_DATA[play.id] || VOICE_DATA[play.sourcePlayId]) ? (VOICE_DATA[play.id] || VOICE_DATA[play.sourcePlayId]) : {};
+  return {coachIntro:voice.coachIntro||data.coachIntro,playerInstructions:{...(data.playerInstructions||{}),...(voice.playerInstructions||{})},timeline:voice.timeline||data.timeline||[]};
+}
+function getCoachIntro(play){
+  const v=getPlayVoice(play);
+  if(v.coachIntro)return `${v.coachIntro} ${getSituationSummary()}`;
+  return `${play.name}. ${getSituationSummary()} ${play.why||play.desc||""}`.trim();
+}
+function getPlayerInstruction(play,position){
+  const v=getPlayVoice(play);
+  if(v.playerInstructions[position])return v.playerInstructions[position];
+  const steps=(play.steps||[]), moves=steps.flatMap(s=>(s.move||[]).filter(m=>m.who===position).map(m=>s.note||""));
+  const throws=steps.filter(s=>s.ball&&s.ball.from===position).map(s=>`Throw to ${targetName(s.ball.to)}.`);
+  if(moves.length||throws.length)return `You're the ${POSITION_NAMES[position]}. ${[...new Set([...moves,...throws])].join(" ")}`;
+  return `You're the ${POSITION_NAMES[position]}. Read the ball, move to your job, and communicate.`;
+}
 
 function runnerSituationText(){
   const names={"@1":"first","@2":"second","@3":"third"};
@@ -273,60 +356,18 @@ function runnerSituationText(){
   return bases.length ? `Runner${bases.length>1?"s":""} on ${bases.join(" and ")}, ${outs} out${outs===1?"":"s"}.` : `${outs} out${outs===1?"":"s"}, bases empty.`;
 }
 
-function playStepForPosition(play,position){
-  if(!play || position==="COACH") return "";
-  const moves=(play.steps||[]).flatMap(step=>(step.move||[]).filter(move=>move.who===position).map(move=>step.note||""));
-  const throws=(play.steps||[]).filter(step=>step.ball && step.ball.from===position).map(step=>`Throw to ${String(step.ball.to).replace("@","")}.`);
-  return [...new Set([...moves,...throws])].join(" ");
-}
-
 function targetName(target){
   const names={"@H":"home","@1":"first","@2":"second","@3":"third"};
   return names[target] || POSITION_NAMES[target] || String(target||"the right base");
 }
 
-function stepVoiceText(play,step,position){
-  if(!step || position==="COACH") return step && step.note ? step.note : play.desc || play.name;
-  const moved=(step.move||[]).some(move=>move.who===position);
-  const throwing=step.ball && step.ball.from===position;
-  const receiving=step.ball && step.ball.to===position;
-  if(moved || throwing || receiving){
-    let text=`${POSITION_NAMES[position]}. ${step.note || "Move to your job."}`;
-    if(throwing) text+=` Throw to ${targetName(step.ball.to)}.`;
-    if(receiving) text+=" Secure the catch and be ready for the next play.";
-    return text;
-  }
-  if(["LF","CF","RF","RC"].includes(position) && step.ball) return `${POSITION_NAMES[position]}. Read the flight and back up the play.`;
-  return "";
-}
-
-function kidCueText(play,position=voicePosition){
-  if(!play) return "Read the ball. Get to it. Make the right throw.";
-  const name=(play.name||"").toLowerCase();
-  if(position!=="COACH"){
-    if(name.includes("bases loaded") || name.includes("force at home")){
-      if(position==="C") return "Bases loaded. This is a force. Get one foot on home, secure the ball, and do not tag.";
-      if(["1B","2B","SS","3B","P"].includes(position)) return `${POSITION_NAMES[position]}. Get the ball to home quickly. The catcher only needs to touch the plate with the ball.`;
-    }
-    const action=playStepForPosition(play,position);
-    if(action) return `You're the ${POSITION_NAMES[position]}. ${action} Keep talking and get ready for the next play.`;
-    if(position==="C") return "You're the catcher. Check the outs and runners, call the coverage, then direct the play.";
-    if(position==="P") return "You're the pitcher. Read the ball, back up the play, and be ready for the next throw.";
-    if(position==="CF" || position==="RC" || position==="LF") return `You're the ${POSITION_NAMES[position]}. Read the flight, back up the base, and keep the ball in front.`;
-    return `You're the ${POSITION_NAMES[position]}. Read the ball, move to your job, and communicate the throw.`;
-  }
-  if(name.includes("double play") || name.includes("ground ball")) return `Ground ball. ${runnerSituationText()} Read the ball, step in, and turn the force at second before finishing at first.`;
-  if(name.includes("bases loaded") || name.includes("force at home")) return `Bases loaded. ${runnerSituationText()} This is a force at home. Catcher, touch the plate with the ball. No tag needed.`;
-  if(name.includes("squeeze") || name.includes("bunt")) return `Bunt defense. ${runnerSituationText()} Read it early, communicate the base, and take the safest out.`;
-  if(name.includes("pickle") || name.includes("rundown")) return "Rundown. Chase hard, keep the runner moving toward the tag, and finish with as few throws as possible.";
-  return `${play.name}. ${runnerSituationText()} Read the ball, communicate, and make the safest useful throw.`;
-}
-
 function showKidCue(play){
-  const text=kidCueText(play,voicePosition);
+  const text=voiceMode==="coach" ? getCoachIntro(play) : voiceMode==="player" ? getPlayerInstruction(play,voicePosition) : getCoachIntro(play);
   const cueEl = document.getElementById('coachDrillText');
   if(cueEl) cueEl.textContent = text;
-  if(voiceEnabled) speakNarration(text);
+  updateJobPanel(play);
+  if(voiceMode==="coach")speakCoachIntro(play);
+  else if(voiceMode==="player")speakPlayerInstruction(play,voicePosition);
   return text;
 }
 
@@ -349,27 +390,68 @@ function saveCustomPlays(){ localStorage.setItem(CUSTOM_PLAY_KEY, JSON.stringify
 
 function getAllPlays(){ return [...PLAYS, ...customPlays]; }
 
-function speakNarration(text){
-  if(!voiceEnabled || !('speechSynthesis' in window)) return;
+function speak(text,options={}){
+  if(voiceMode==="off" || !voiceSupported || !text)return;
   const utterance=new SpeechSynthesisUtterance(text);
-  utterance.rate=Math.max(.72,Math.min(1.05,.92/Math.max(speed,.5)));
+  utterance.rate=RATE_VALUES[speechRate]||RATE_VALUES.normal;
+  if(speed>=1.5 && options.priority==="detail")return;
+  if(speed>=2 && options.priority!=="critical")return;
   utterance.pitch=1.05;
   utterance.lang='en-US';
-  window.speechSynthesis.cancel();
+  const selected=window.speechSynthesis.getVoices().find(v=>v.voiceURI===voiceName);
+  if(selected)utterance.voice=selected;
+  cancelSpeech();
   window.speechSynthesis.speak(utterance);
 }
 
+function speakNarration(text){speak(text,{priority:"normal"});}
+function speakCoachIntro(play){speak(getCoachIntro(play),{priority:"critical"});}
+function speakPlayerInstruction(play,position){speak(getPlayerInstruction(play,position),{priority:"critical"});}
+function speakTimelineCue(cue){speak(cue.text,{priority:cue.priority||"normal"});}
+
 function speakPlayStep(play, t){
-  if(!voiceEnabled || !play || t<0) return;
-  const steps=play.steps||[];
-  const index=steps.reduce((found,step,i)=>t>=step.t[0] ? i : found,-1);
-  const key=`${play.id}:${index}`;
-  if(index>=0 && key!==lastVoiceStepKey){
-    lastVoiceStepKey=key;
-    const step=steps[index];
-    const cue=stepVoiceText(play,step,voicePosition);
-    if(cue) speakNarration(cue);
-  }
+  if(voiceMode!=="playbyplay" || !play || t<0)return;
+  const timeline=getPlayVoice(play).timeline;
+  const cues=timeline.length ? timeline : (play.steps||[]).map((step,index)=>({at:step.t[0],text:step.note,priority:index===0?"normal":"critical"}));
+  const available=cues.map((cue,index)=>({cue,index})).filter(({cue})=>t>=cue.at);
+  const pending=available.filter(({index})=>!spokenVoiceSteps.has(`${play.id}:cue:${index}`));
+  if(!pending.length)return;
+  const latest=pending[pending.length-1];
+  pending.forEach(({index})=>spokenVoiceSteps.add(`${play.id}:cue:${index}`));
+  speakTimelineCue(latest.cue);
+}
+
+function updateJobPanel(play){
+  const panel=document.getElementById("jobPanel");
+  if(!panel)return;
+  if(voiceMode!=="player" || !play){panel.textContent="";return;}
+  const text=getPlayerInstruction(play,voicePosition);
+  panel.innerHTML=`<strong>YOUR JOB — ${(POSITION_NAMES[voicePosition]||voicePosition).toUpperCase()}</strong><br>${text}`;
+}
+
+function populateVoiceList(){
+  const select=document.getElementById("voiceName");
+  if(!select || !voiceSupported)return;
+  const voices=window.speechSynthesis.getVoices().filter(v=>/^en(-|_)/i.test(v.lang));
+  select.innerHTML='<option value="">Default browser voice</option>';
+  voices.forEach(voice=>{
+    const option=document.createElement("option");
+    option.value=voice.voiceURI;
+    option.textContent=`${voice.name} (${voice.lang})`;
+    select.appendChild(option);
+  });
+  select.value=voiceName;
+}
+
+function updateVoiceControls(){
+  const mode=document.getElementById("voiceMode"),position=document.getElementById("voicePosition");
+  if(mode)mode.value=voiceMode;
+  if(position){position.value=voicePosition;position.disabled=voiceMode!=="player" || !start[voicePosition];}
+  document.getElementById("speechRate").value=speechRate;
+  const state=document.getElementById("voiceState");
+  state.textContent=!voiceSupported?"Voice coaching is not supported on this browser.":voiceMode==="off"?"Voice cues off":`${voiceMode==="coach"?"Coach":voiceMode==="playbyplay"?"Play-by-play":"Player"} voice enabled`;
+  state.classList.toggle("on",voiceSupported && voiceMode!=="off");
+  document.getElementById("voiceBtn").textContent=voiceMode==="off"?"🔇 Voice off":"🔊 Voice settings";
 }
 
 function buildStart(){
@@ -567,6 +649,7 @@ function exportPlayCard(){
     depth,
     tenPlayers,
     notes: play.steps ? play.steps.map(s=>s.note).filter(Boolean) : []
+    ,voice: play.voice || getPlayVoice(play)
   };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -594,7 +677,10 @@ function openCustomEditor(play){
     type:document.getElementById('customType'),
     desc:document.getElementById('customDesc'),
     why:document.getElementById('customWhy'),
-    note:document.getElementById('customNote')
+    note:document.getElementById('customNote'),
+    voiceIntro:document.getElementById('customVoiceIntro'),
+    voicePlayers:document.getElementById('customVoicePlayers'),
+    voiceTimeline:document.getElementById('customVoiceTimeline')
   };
   const deleteBtn=document.getElementById('deleteCustomPlay');
   if(play){
@@ -606,6 +692,9 @@ function openCustomEditor(play){
     form.desc.value=play.desc||'';
     form.why.value=play.why||'';
     form.note.value=(play.situ&&play.situ.note)||'';
+    form.voiceIntro.value=(play.voice&&play.voice.coachIntro)||'';
+    form.voicePlayers.value=JSON.stringify((play.voice&&play.voice.playerInstructions)||{},null,2);
+    form.voiceTimeline.value=JSON.stringify((play.voice&&play.voice.timeline)||[],null,2);
     deleteBtn.style.display = customPlays.some(p=>p.id===play.id) ? 'inline-block' : 'none';
   } else {
     customEditorId=null;
@@ -615,6 +704,9 @@ function openCustomEditor(play){
     form.desc.value='';
     form.why.value='';
     form.note.value='';
+    form.voiceIntro.value='';
+    form.voicePlayers.value='';
+    form.voiceTimeline.value='';
     deleteBtn.style.display='none';
   }
   overlay.style.display='flex';
@@ -631,12 +723,19 @@ function saveCustomPlayFromEditor(){
     type:document.getElementById('customType').value,
     desc:document.getElementById('customDesc').value.trim(),
     why:document.getElementById('customWhy').value.trim(),
-    note:document.getElementById('customNote').value.trim()
+    note:document.getElementById('customNote').value.trim(),
+    voiceIntro:document.getElementById('customVoiceIntro').value.trim(),
+    voicePlayers:document.getElementById('customVoicePlayers').value.trim(),
+    voiceTimeline:document.getElementById('customVoiceTimeline').value.trim()
   };
   if(!form.name || !form.desc){
     alert('Give the custom play a name and description before saving.');
     return;
   }
+  let playerInstructions={},timeline=[];
+  try{if(form.voicePlayers)playerInstructions=JSON.parse(form.voicePlayers);}catch{alert('Position instructions must be valid JSON.');return;}
+  try{if(form.voiceTimeline)timeline=JSON.parse(form.voiceTimeline);}catch{alert('Timeline voice cues must be valid JSON.');return;}
+  if(!Array.isArray(timeline)){alert('Timeline voice cues must be a JSON array.');return;}
   const item={
     id: customEditorId || `custom-${Date.now()}`,
     ...(customEditorSourceId ? {sourcePlayId:customEditorSourceId} : {}),
@@ -644,6 +743,7 @@ function saveCustomPlayFromEditor(){
     name:form.name,
     desc:form.desc,
     why:form.why || 'Teach the players to communicate, get to the ball, and finish the play with the correct throw.',
+    voice:{coachIntro:form.voiceIntro,playerInstructions,timeline},
     situ:{need:[],outsLt:3,note:form.note || 'Use this for a teaching rep in a similar game situation.'},
     steps:[
       {t:[0,.12],ball:{from:'P',to:{x:400,y:642}},note:'Pitch is on the way'},
@@ -858,7 +958,8 @@ function buildRunners(play){
 
 function drawPlayer(k,x,y){
   const g=add(gPlayers,"g",{class:"pl","data-k":k,style:"cursor:grab"});
-  add(g,"circle",{cx:x,cy:y,r:15,fill:"#3aa0ff",stroke:"#0b2740","stroke-width":2});
+  const selected=voiceMode==="player" && voicePosition===k;
+  add(g,"circle",{cx:x,cy:y,r:selected?21:15,fill:selected?"#f5a524":"#3aa0ff",stroke:selected?"#fff":"#0b2740","stroke-width":selected?3:2});
   add(g,"text",{x:x,y:y+4,"text-anchor":"middle","font-size":11,"font-weight":"700",fill:"#04121f","pointer-events":"none"},k);
   g.addEventListener("pointerdown",ev=>{
     ev.preventDefault();stop();
@@ -882,8 +983,8 @@ function loop(ts){
   if(t>=1){playing=false;last=0;return;}
   raf=requestAnimationFrame(loop);
 }
-function play(){if(!current)return;if(t>=1)t=0;if(playing)return;playing=true;last=0;raf=requestAnimationFrame(loop);}
-function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;}
+function play(){if(!current)return;if(t>=1){t=0;resetVoiceState();}if(playing)return;playing=true;last=0;raf=requestAnimationFrame(loop);}
+function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;cancelSpeech();}
 
 function fitPlay(p){
   if(!p.situ)return null;
@@ -894,7 +995,7 @@ function fitPlay(p){
   return {ok:needOk&&outsOk&&formationOk&&playersOk,note:p.situ.note};
 }
 
-function selectPlay(p){stop();current=p;t=0;lastVoiceStepKey="";
+function selectPlay(p){stop();resetVoiceState();current=p;t=0;lastVoiceStepKey="";
   [...document.querySelectorAll("#playList li")].forEach(li=>li.classList.toggle("sel",li.dataset.id===p.id));
   draw();
   const w=document.getElementById("why");
@@ -925,7 +1026,7 @@ function updateSuggestions(){
   box.innerHTML=`<div class="suggest">💡 With this situation, consider: <strong>${names}</strong></div>`;
 }
 
-function rebuild(){stop();buildStart();drawField();t=0;draw();updateDepthCap();}
+function rebuild(){stop();buildStart();drawField();t=0;resetVoiceState();draw();updateDepthCap();updateVoiceControls();}
 function updateDepthCap(){
   const info=ALIGNMENTS[alignment]||ALIGNMENTS.standard;
   document.getElementById("depthCap").textContent = `${DEPTH_CAP[depth] || ""} ${info.note}`.trim();
@@ -933,6 +1034,17 @@ function updateDepthCap(){
 
 const tog=(sel,b)=>{document.querySelectorAll(sel).forEach(x=>x.classList.remove("active"));b.classList.add("active");};
 customPlays=loadCustomPlays();
+loadVoiceSettings();
+if(voiceSupported){
+  populateVoiceList();
+  window.speechSynthesis.onvoiceschanged=populateVoiceList;
+}else{
+  document.getElementById("voiceMode").disabled=true;
+  document.getElementById("voicePosition").disabled=true;
+  document.getElementById("speechRate").disabled=true;
+  document.getElementById("voiceName").disabled=true;
+}
+updateVoiceControls();
 document.getElementById("f9").onclick=e=>{tenPlayers=false;tog(".fnum",e.currentTarget);rebuild();};
 document.getElementById("f10").onclick=e=>{tenPlayers=true;tog(".fnum",e.currentTarget);rebuild();};
 document.querySelectorAll(".depth").forEach(b=>b.onclick=()=>{depth=b.dataset.depth;tog(".depth",b);rebuild();});
@@ -954,21 +1066,24 @@ function updateSit(){
 document.getElementById("reset").onclick=rebuild;
 document.getElementById("play").onclick=play;
 document.getElementById("pause").onclick=stop;
-document.getElementById("restart").onclick=()=>{stop();t=0;lastVoiceStepKey="";draw();};
+document.getElementById("restart").onclick=()=>{stop();resetVoiceState();t=0;lastVoiceStepKey="";draw();};
 document.getElementById("speed").oninput=e=>{speed=+e.target.value;document.getElementById("speedLbl").textContent=speed+"×";};
-document.getElementById("scrub").oninput=e=>{stop();t=+e.target.value/1000;render(current,t);};
-document.getElementById("voiceBtn").onclick=()=>{
-  voiceEnabled=!voiceEnabled;
-  const pill=document.getElementById("voiceState");
-  pill.textContent=voiceEnabled?"Voice cues enabled":"Voice cues muted";
-  pill.classList.toggle("on",voiceEnabled);
-  document.getElementById("voiceBtn").textContent=voiceEnabled?"🔊 Voice on":"🔇 Voice off";
+document.getElementById("scrub").oninput=e=>{stop();resetVoiceState();t=+e.target.value/1000;render(current,t);};
+document.getElementById("voiceBtn").onclick=()=>document.getElementById("voiceMode").focus();
+document.getElementById("voiceMode").onchange=e=>{
+  voiceMode=e.target.value;
+  cancelSpeech();resetVoiceState();saveVoiceSettings();updateVoiceControls();
+  if(current)showKidCue(current);
+  draw();
 };
 document.getElementById("voicePosition").onchange=e=>{
   voicePosition=e.target.value;
-  lastVoiceStepKey="";
+  resetVoiceState();saveVoiceSettings();updateVoiceControls();
   showKidCue(current || getAllPlays()[0]);
+  draw();
 };
+document.getElementById("speechRate").onchange=e=>{speechRate=e.target.value;saveVoiceSettings();};
+document.getElementById("voiceName").onchange=e=>{voiceName=e.target.value;saveVoiceSettings();};
 document.getElementById("pathBtn").onclick=()=>{runnerPathMode=!runnerPathMode; document.getElementById("pathBtn").classList.toggle("active",runnerPathMode); if(current) draw(); };
 document.getElementById("savePlayCard").onclick=saveCurrentPlayCard;
 document.getElementById("exportPlayCard").onclick=exportPlayCard;
@@ -1075,7 +1190,7 @@ document.getElementById("guideBtn").onclick=()=>{
 document.getElementById("guideClose").onclick=()=>document.getElementById("guideOverlay").classList.remove("open");
 document.getElementById("guideOverlay").addEventListener("click",e=>{if(e.target.id==="guideOverlay")e.currentTarget.classList.remove("open");});
 
-buildStart();drawField();updateDepthCap();updateSit();renderList();
+buildStart();updateVoiceControls();drawField();updateDepthCap();updateSit();renderList();
 </script>
 </body>
 </html>
