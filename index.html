@@ -229,19 +229,22 @@ const START = {
   CF: { x: 400, y: 210 },
   RF: { x: 590, y: 270 }
 };
+const RF_BACKUP_FIRST = { x: 650, y: 455 };
+const CONTACT = HOME;
+const PITCHER_START = START.P;
 
 const SITUATIONS = [
   {
     id: "bunt-empty",
     title: "Bunt defense - no runners",
     badge: "Bunt",
-    summary: "Everyone yells bunt. Corners crash. Every base gets covered.",
-    cue: "Everyone yells bunt. Corners crash. 2B covers first, SS covers second, LF comes to third, catcher owns home.",
+    summary: "Everyone yells bunt. Corners crash. Every base gets covered. RF backs up first.",
+    cue: "Everyone yells bunt. Corners crash. 2B covers first, SS covers second, LF comes to third, catcher owns home, RF backs up first.",
     why: "With no runners on, there is no lead runner to stop. The simple answer is field the bunt and throw to first, but the team still covers every base in case of an overthrow.",
     bases: [],
     steps: [
-      { label: "Pitch is bunted softly in front of the plate.", t: [0, .18], ball: ["P", { x: 430, y: 595 }] },
-      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home.", t: [.18, .46], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["SS", B2], ["C", HOME], ["P", { x: 410, y: 570 }], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
+      { label: "Pitch is bunted softly in front of the plate.", t: [0, .18], ball: [PITCHER_START, { x: 430, y: 595 }] },
+      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home, RF backs up first.", t: [.18, .46], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["SS", B2], ["C", HOME], ["P", { x: 410, y: 570 }], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", RF_BACKUP_FIRST]] },
       { label: "Field it clean, throw to first for one sure out.", t: [.46, .76], ball: [{ x: 448, y: 588 }, B1] },
       { label: "Finish: out at first.", t: [.76, 1] }
     ],
@@ -251,13 +254,13 @@ const SITUATIONS = [
     id: "bunt-runner-first",
     title: "Bunt - runner on 1st",
     badge: "Right base",
-    summary: "Yell bunt, cover every base, and get the sure out at first.",
-    cue: "Everyone yells bunt. Corners crash. 2B covers first, SS covers second, LF comes to third, catcher owns home. Throw to first for the sure out.",
+    summary: "Yell bunt, cover every base, RF backs up first, and get the sure out.",
+    cue: "Everyone yells bunt. Corners crash. 2B covers first, SS covers second, LF comes to third, catcher owns home, RF backs up first. Throw to first for the sure out.",
     why: "For 10U bunt defense, the priority is a clean, repeatable out. The runner on first may advance, but every base is covered so the defense is protected if the throw gets loose.",
     bases: ["1B"],
     steps: [
-      { label: "Bunt goes toward first base.", t: [0, .18], ball: ["P", { x: 452, y: 590 }] },
-      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home.", t: [.18, .48], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }], ["C", HOME], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
+      { label: "Bunt goes toward first base.", t: [0, .18], ball: [PITCHER_START, { x: 452, y: 590 }] },
+      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home, RF backs up first.", t: [.18, .48], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }], ["C", HOME], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", RF_BACKUP_FIRST]] },
       { label: "2B is on first. Throw to first for the sure out.", t: [.48, .74], ball: [{ x: 452, y: 590 }, B1] },
       { label: "Finish: out at first, runner advances to second.", t: [.74, 1] }
     ],
@@ -270,13 +273,13 @@ const SITUATIONS = [
     id: "bunt-runner-second",
     title: "Bunt - runner on 2nd",
     badge: "Tag read",
-    summary: "Yell bunt, cover every base, check the runner, then throw to first.",
-    cue: "Everyone yells bunt. 2B covers first, SS covers third, CF comes in to support second, catcher owns home. Check the runner, then throw to first.",
+    summary: "Yell bunt, cover every base, RF backs up first, check the runner, then throw.",
+    cue: "Everyone yells bunt. 2B covers first, SS covers third, CF comes in to support second, catcher owns home, RF backs up first. Check the runner, then throw to first.",
     why: "A runner on second is not forced when first base is empty. The defense must tag her if she goes, so SS covers third while 2B gets first and an outfielder comes in to support second.",
     bases: ["2B"],
     steps: [
-      { label: "Bunt is down toward third base.", t: [0, .18], ball: ["P", { x: 355, y: 590 }] },
-      { label: "Everyone yells bunt. 2B covers first, SS covers third, CF comes in to support second, C has home.", t: [.18, .48], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }], ["C", HOME], ["LF", { x: 230, y: 330 }], ["CF", B2], ["RF", { x: 570, y: 330 }]] },
+      { label: "Bunt is down toward third base.", t: [0, .18], ball: [PITCHER_START, { x: 355, y: 590 }] },
+      { label: "Everyone yells bunt. 2B covers first, SS covers third, CF supports second, C has home, RF backs up first.", t: [.18, .48], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }], ["C", HOME], ["LF", { x: 230, y: 330 }], ["CF", B2], ["RF", RF_BACKUP_FIRST]] },
       { label: "3B checks the runner, then throws to first.", t: [.48, .76], ball: [{ x: 355, y: 590 }, B1] },
       { label: "Finish: sure out at first, runner held.", t: [.76, 1] }
     ],
@@ -289,13 +292,13 @@ const SITUATIONS = [
     id: "wild-pitch",
     title: "Wild pitch / passed ball",
     badge: "Cover",
-    summary: "Catcher gets ball. Pitcher covers home. Outfielders move in to support.",
-    cue: "Pitcher yells home, home, home and covers the plate. Catcher finds the ball. Outfielders move in and get ready for an overthrow.",
-    why: "The catcher leaves the plate to get the ball, so the pitcher must cover home. Outfielders do not stand and watch; they move in so a bad throw does not turn into extra bases.",
+    summary: "Catcher gets ball. Pitcher covers home. Every base has coverage. Outfielders move in.",
+    cue: "Pitcher yells home, home, home and covers the plate. Catcher finds the ball. Infielders cover the bags. Outfielders move in and get ready for an overthrow.",
+    why: "The catcher leaves the plate to get the ball, so the pitcher must cover home. Infielders cover the bases and outfielders move in so a bad throw does not turn into extra bases.",
     bases: ["3B"],
     steps: [
-      { label: "Pitch gets away behind the catcher.", t: [0, .24], ball: ["P", { x: 455, y: 690 }] },
-      { label: "Catcher finds the ball. Pitcher covers home. Outfielders move in to support.", t: [.24, .55], move: [["C", { x: 455, y: 690 }], ["P", HOME], ["1B", B1], ["3B", B3], ["LF", { x: 230, y: 330 }], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
+      { label: "Pitch gets away behind the catcher.", t: [0, .24], ball: [PITCHER_START, { x: 455, y: 690 }] },
+      { label: "Catcher finds the ball. Pitcher covers home. Infielders cover bases. Outfielders move in.", t: [.24, .55], move: [["C", { x: 455, y: 690 }], ["P", HOME], ["1B", B1], ["2B", B2], ["3B", B3], ["SS", { x: 315, y: 460 }], ["LF", { x: 230, y: 330 }], ["CF", { x: 400, y: 305 }], ["RF", { x: 570, y: 330 }]] },
       { label: "Catcher tosses to pitcher covering home.", t: [.55, .76], ball: [{ x: 455, y: 690 }, HOME] },
       { label: "Finish: tag at the plate.", t: [.76, 1] }
     ],
@@ -310,10 +313,11 @@ const SITUATIONS = [
     why: "Because every base behind the runner is occupied, the runner from third must go. The catcher only needs the ball on home plate before the runner arrives.",
     bases: ["1B", "2B", "3B"],
     steps: [
-      { label: "Grounder to the pitcher.", t: [0, .22], ball: ["P", { x: 398, y: 560 }] },
-      { label: "Catcher stays on home. Corners hold their bases.", t: [.22, .5], move: [["C", HOME], ["1B", B1], ["3B", B3], ["2B", B2]] },
-      { label: "Pitcher throws home for the force.", t: [.5, .72], ball: [{ x: 398, y: 560 }, HOME] },
-      { label: "Finish: force out at home.", t: [.72, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Grounder comes back to the pitcher.", t: [.12, .30], ball: [CONTACT, { x: 398, y: 560 }] },
+      { label: "Catcher stays on home. 1B, 2B, and 3B cover their bags.", t: [.30, .54], move: [["C", HOME], ["1B", B1], ["2B", B2], ["3B", B3], ["SS", { x: 335, y: 430 }]] },
+      { label: "Pitcher throws home for the force.", t: [.54, .74], ball: [{ x: 398, y: 560 }, HOME] },
+      { label: "Finish: force out at home.", t: [.74, 1] }
     ],
     runners: [
       { from: B3, to: HOME, t: [.22, .76] },
@@ -326,14 +330,15 @@ const SITUATIONS = [
     title: "Grounder to 2B side",
     badge: "Middle",
     summary: "2B gets the ball. SS covers second. 1B covers first.",
-    cue: "Ball to the 2B side: 2B attacks the ball, SS covers second, 1B stays on first, RF moves in to back up.",
+    cue: "Ball to the 2B side: 2B attacks the ball, SS covers second, 1B stays on first, RF backs up the throw to first.",
     why: "When 2B leaves her spot to field the ball, SS owns second base. That keeps the middle covered and gives the defense a force option if a runner is on first.",
     bases: ["1B"],
     steps: [
-      { label: "Ground ball is hit to the 2B side.", t: [0, .22], ball: ["P", { x: 485, y: 468 }] },
-      { label: "2B fields it. SS covers second. 1B holds first. RF backs up.", t: [.22, .52], move: [["2B", { x: 485, y: 468 }], ["SS", B2], ["1B", B1], ["RF", { x: 615, y: 430 }], ["CF", { x: 430, y: 315 }]] },
-      { label: "For 10U, take the clean throw to first.", t: [.52, .76], ball: [{ x: 485, y: 468 }, B1] },
-      { label: "Finish: 2B made the play, SS protected second.", t: [.76, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Ground ball is hit from the plate to the 2B side.", t: [.12, .30], ball: [CONTACT, { x: 485, y: 468 }] },
+      { label: "2B fields it. SS covers second. 1B holds first. RF backs up first.", t: [.30, .56], move: [["2B", { x: 485, y: 468 }], ["SS", B2], ["1B", B1], ["RF", RF_BACKUP_FIRST], ["CF", { x: 430, y: 315 }]] },
+      { label: "For 10U, take the clean throw to first.", t: [.56, .80], ball: [{ x: 485, y: 468 }, B1] },
+      { label: "Finish: 2B made the play, SS protected second.", t: [.80, 1] }
     ],
     runners: [
       { from: B1, to: B2, t: [.22, .8] },
@@ -345,14 +350,14 @@ const SITUATIONS = [
     title: "Grounder to 3B side",
     badge: "Middle",
     summary: "3B gets the ball. SS supports third side. 2B covers second.",
-    cue: "Ball to the 3B side: 3B attacks it, SS moves toward third-side backup, 2B covers second, 1B stays home for the throw.",
-    why: "On a ball to the left side, SS cannot stand still. She supports the 3B side, while 2B owns second so the middle base is still covered.",
+    cue: "Ball to the 3B side: 3B attacks it on the line, SS moves toward third-side backup, 2B covers second, 1B stays home, RF backs up first.",
+    why: "On a ball to the left side, SS cannot stand still. She supports the 3B side, while 2B owns second and RF backs up the throw to first.",
     bases: ["1B"],
     steps: [
-      { label: "Pitch reaches the plate.", t: [0, .12], ball: ["P", { x: 400, y: 642 }] },
-      { label: "Ground ball is hit from the plate to the 3B side.", t: [.12, .30], ball: [{ x: 400, y: 642 }, { x: 308, y: 548 }] },
-      { label: "3B fields it. SS supports the third-base side. 2B covers second.", t: [.30, .56], move: [["3B", { x: 308, y: 548 }], ["SS", { x: 292, y: 492 }], ["2B", B2], ["1B", B1], ["LF", { x: 245, y: 345 }]] },
-      { label: "Throw across to first for the sure out.", t: [.56, .80], ball: [{ x: 308, y: 548 }, B1] },
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Ground ball is hit from home up the 3B line.", t: [.12, .30], ball: [HOME, { x: 308, y: 528 }] },
+      { label: "3B fields it. SS supports the third-base side. 2B covers second. RF backs up first.", t: [.30, .56], move: [["3B", { x: 308, y: 528 }], ["SS", { x: 292, y: 492 }], ["2B", B2], ["1B", B1], ["RF", RF_BACKUP_FIRST], ["LF", { x: 245, y: 345 }]] },
+      { label: "Throw across to first for the sure out.", t: [.56, .80], ball: [{ x: 308, y: 528 }, B1] },
       { label: "Finish: 2B covered second, SS backed up the left side.", t: [.80, 1] }
     ],
     runners: [
@@ -369,10 +374,11 @@ const SITUATIONS = [
     why: "This is the difference 10U players must know: forced runner equals touch the base; unforced runner equals tag the runner.",
     bases: ["2B"],
     steps: [
-      { label: "Ground ball to shortstop.", t: [0, .22], ball: ["P", "SS"] },
-      { label: "Runner breaks toward third. 3B covers the bag.", t: [.22, .48], move: [["SS", { x: 338, y: 435 }], ["3B", B3]] },
-      { label: "SS throws to third.", t: [.48, .68], ball: ["SS", B3] },
-      { label: "Finish: 3B tags the runner.", t: [.68, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Ground ball is hit to shortstop.", t: [.12, .30], ball: [CONTACT, { x: 338, y: 435 }] },
+      { label: "Runner breaks toward third. 3B covers the bag. 2B covers second.", t: [.30, .52], move: [["SS", { x: 338, y: 435 }], ["3B", B3], ["2B", B2]] },
+      { label: "SS throws to third.", t: [.52, .72], ball: [{ x: 338, y: 435 }, B3] },
+      { label: "Finish: 3B tags the runner.", t: [.72, 1] }
     ],
     runners: [{ from: B2, to: B3, t: [.22, .76] }]
   }
