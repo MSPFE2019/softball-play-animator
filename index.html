@@ -151,6 +151,22 @@
         <button id="drillBtn">Live read drill</button>
         <button id="kidCueBtn">What should they do?</button>
       </div>
+      <div class="row" style="margin-top:8px">
+        <label for="voicePosition">Teach</label>
+        <select id="voicePosition" aria-label="Position to teach">
+          <option value="COACH">Coach overview</option>
+          <option value="P">Pitcher</option>
+          <option value="C">Catcher</option>
+          <option value="1B">First base</option>
+          <option value="2B">Second base</option>
+          <option value="SS">Shortstop</option>
+          <option value="3B">Third base</option>
+          <option value="LF">Left field</option>
+          <option value="CF">Center field</option>
+          <option value="RF">Right field</option>
+          <option value="RC">Right-center</option>
+        </select>
+      </div>
       <div class="row" style="margin-top:8px"><span id="voiceState" class="voice-pill on">Voice cues enabled</span></div>
       <div class="row" style="margin-top:8px"><span id="coachDrillText" class="coach-cue">Read the ball. Get to it. Make the right throw.</span></div>
     </div>
@@ -245,25 +261,69 @@ let customPlays=[];
 let customEditorId=null;
 let customEditorSourceId=null;
 let runnerPathMode=false;
-let lastVoiceFrame=-1;
+let voicePosition="COACH";
+let lastVoiceStepKey="";
 let drillIndex=0;
 
-function kidCueText(play){
-  if(!play) return 'Read the ball. Get to it. Make the right throw.';
-  const name = (play.name || '').toLowerCase();
-  if(name.includes('double play') || name.includes('ground ball')) return 'Read the ball. Step in. Get the ball out front. Throw to second, then finish the play.';
-  if(name.includes('left') || name.includes('right') || name.includes('gap')) return 'Take the ball in your zone. Charge the ball. Get it to the cutoff. Throw to the right base.';
-  if(name.includes('first-and-third') || name.includes('throw-through')) return 'Hold the runner. Get the throw to second. Keep your eyes on the runner at third.';
-  if(name.includes('bases loaded') || name.includes('force at home')) return 'Get the ball. Take the force at home. Make the tag before the runner gets there.';
-  if(name.includes('pickle') || name.includes('rundown')) return 'Chase the runner. Keep the ball low. Run them toward the tag and finish the play.';
-  if(name.includes('hit-and-run') || name.includes('runner going')) return 'Listen for the sign. Read the pitch. Get the ball moving and protect the runner.';
-  if(name.includes('squeeze') || name.includes('bunt')) return 'Read the bunt. Get ready early. Field it clean and make the throw to the right base.';
-  if(name.includes('drag')) return 'Crash on the bunt. Cover your base. Finish the play with a quick throw.';
-  return 'Read the ball. Get to it. Make a smart throw and finish the play.';
+const POSITION_NAMES={P:"pitcher",C:"catcher","1B":"first baseman","2B":"second baseman",SS:"shortstop","3B":"third baseman",LF:"left fielder",CF:"center fielder",RF:"right fielder",RC:"right-center fielder"};
+
+function runnerSituationText(){
+  const names={"@1":"first","@2":"second","@3":"third"};
+  const bases=["@1","@2","@3"].filter(b=>onBase.has(b)).map(b=>names[b]);
+  return bases.length ? `Runner${bases.length>1?"s":""} on ${bases.join(" and ")}, ${outs} out${outs===1?"":"s"}.` : `${outs} out${outs===1?"":"s"}, bases empty.`;
+}
+
+function playStepForPosition(play,position){
+  if(!play || position==="COACH") return "";
+  const moves=(play.steps||[]).flatMap(step=>(step.move||[]).filter(move=>move.who===position).map(move=>step.note||""));
+  const throws=(play.steps||[]).filter(step=>step.ball && step.ball.from===position).map(step=>`Throw to ${String(step.ball.to).replace("@","")}.`);
+  return [...new Set([...moves,...throws])].join(" ");
+}
+
+function targetName(target){
+  const names={"@H":"home","@1":"first","@2":"second","@3":"third"};
+  return names[target] || POSITION_NAMES[target] || String(target||"the right base");
+}
+
+function stepVoiceText(play,step,position){
+  if(!step || position==="COACH") return step && step.note ? step.note : play.desc || play.name;
+  const moved=(step.move||[]).some(move=>move.who===position);
+  const throwing=step.ball && step.ball.from===position;
+  const receiving=step.ball && step.ball.to===position;
+  if(moved || throwing || receiving){
+    let text=`${POSITION_NAMES[position]}. ${step.note || "Move to your job."}`;
+    if(throwing) text+=` Throw to ${targetName(step.ball.to)}.`;
+    if(receiving) text+=" Secure the catch and be ready for the next play.";
+    return text;
+  }
+  if(["LF","CF","RF","RC"].includes(position) && step.ball) return `${POSITION_NAMES[position]}. Read the flight and back up the play.`;
+  return "";
+}
+
+function kidCueText(play,position=voicePosition){
+  if(!play) return "Read the ball. Get to it. Make the right throw.";
+  const name=(play.name||"").toLowerCase();
+  if(position!=="COACH"){
+    if(name.includes("bases loaded") || name.includes("force at home")){
+      if(position==="C") return "Bases loaded. This is a force. Get one foot on home, secure the ball, and do not tag.";
+      if(["1B","2B","SS","3B","P"].includes(position)) return `${POSITION_NAMES[position]}. Get the ball to home quickly. The catcher only needs to touch the plate with the ball.`;
+    }
+    const action=playStepForPosition(play,position);
+    if(action) return `You're the ${POSITION_NAMES[position]}. ${action} Keep talking and get ready for the next play.`;
+    if(position==="C") return "You're the catcher. Check the outs and runners, call the coverage, then direct the play.";
+    if(position==="P") return "You're the pitcher. Read the ball, back up the play, and be ready for the next throw.";
+    if(position==="CF" || position==="RC" || position==="LF") return `You're the ${POSITION_NAMES[position]}. Read the flight, back up the base, and keep the ball in front.`;
+    return `You're the ${POSITION_NAMES[position]}. Read the ball, move to your job, and communicate the throw.`;
+  }
+  if(name.includes("double play") || name.includes("ground ball")) return `Ground ball. ${runnerSituationText()} Read the ball, step in, and turn the force at second before finishing at first.`;
+  if(name.includes("bases loaded") || name.includes("force at home")) return `Bases loaded. ${runnerSituationText()} This is a force at home. Catcher, touch the plate with the ball. No tag needed.`;
+  if(name.includes("squeeze") || name.includes("bunt")) return `Bunt defense. ${runnerSituationText()} Read it early, communicate the base, and take the safest out.`;
+  if(name.includes("pickle") || name.includes("rundown")) return "Rundown. Chase hard, keep the runner moving toward the tag, and finish with as few throws as possible.";
+  return `${play.name}. ${runnerSituationText()} Read the ball, communicate, and make the safest useful throw.`;
 }
 
 function showKidCue(play){
-  const text = kidCueText(play);
+  const text=kidCueText(play,voicePosition);
   const cueEl = document.getElementById('coachDrillText');
   if(cueEl) cueEl.textContent = text;
   if(voiceEnabled) speakNarration(text);
@@ -273,7 +333,10 @@ function showKidCue(play){
 function nextLiveDrill(){
   const plays = getAllPlays();
   const next = plays[(drillIndex++) % Math.max(1, plays.length)] || plays[0];
-  if(current !== next) selectPlay(next);
+  if(current !== next){
+    selectPlay(next);
+    return document.getElementById("coachDrillText").textContent;
+  }
   return showKidCue(next);
 }
 
@@ -289,7 +352,7 @@ function getAllPlays(){ return [...PLAYS, ...customPlays]; }
 function speakNarration(text){
   if(!voiceEnabled || !('speechSynthesis' in window)) return;
   const utterance=new SpeechSynthesisUtterance(text);
-  utterance.rate=0.92;
+  utterance.rate=Math.max(.72,Math.min(1.05,.92/Math.max(speed,.5)));
   utterance.pitch=1.05;
   utterance.lang='en-US';
   window.speechSynthesis.cancel();
@@ -298,13 +361,14 @@ function speakNarration(text){
 
 function speakPlayStep(play, t){
   if(!voiceEnabled || !play || t<0) return;
-  const step=(play.steps||[]).slice().reverse().find(s=>t>=s.t[0] && t<=s.t[1]);
-  const line = step && step.note ? step.note : (play.desc || play.name);
-  const cue = kidCueText(play) + ' ' + (line || '');
-  const frame = Math.floor(t*20);
-  if(frame!==lastVoiceFrame){
-    lastVoiceFrame=frame;
-    speakNarration(cue);
+  const steps=play.steps||[];
+  const index=steps.reduce((found,step,i)=>t>=step.t[0] ? i : found,-1);
+  const key=`${play.id}:${index}`;
+  if(index>=0 && key!==lastVoiceStepKey){
+    lastVoiceStepKey=key;
+    const step=steps[index];
+    const cue=stepVoiceText(play,step,voicePosition);
+    if(cue) speakNarration(cue);
   }
 }
 
@@ -830,7 +894,7 @@ function fitPlay(p){
   return {ok:needOk&&outsOk&&formationOk&&playersOk,note:p.situ.note};
 }
 
-function selectPlay(p){stop();current=p;t=0;
+function selectPlay(p){stop();current=p;t=0;lastVoiceStepKey="";
   [...document.querySelectorAll("#playList li")].forEach(li=>li.classList.toggle("sel",li.dataset.id===p.id));
   draw();
   const w=document.getElementById("why");
@@ -890,7 +954,7 @@ function updateSit(){
 document.getElementById("reset").onclick=rebuild;
 document.getElementById("play").onclick=play;
 document.getElementById("pause").onclick=stop;
-document.getElementById("restart").onclick=()=>{stop();t=0;draw();};
+document.getElementById("restart").onclick=()=>{stop();t=0;lastVoiceStepKey="";draw();};
 document.getElementById("speed").oninput=e=>{speed=+e.target.value;document.getElementById("speedLbl").textContent=speed+"×";};
 document.getElementById("scrub").oninput=e=>{stop();t=+e.target.value/1000;render(current,t);};
 document.getElementById("voiceBtn").onclick=()=>{
@@ -899,6 +963,11 @@ document.getElementById("voiceBtn").onclick=()=>{
   pill.textContent=voiceEnabled?"Voice cues enabled":"Voice cues muted";
   pill.classList.toggle("on",voiceEnabled);
   document.getElementById("voiceBtn").textContent=voiceEnabled?"🔊 Voice on":"🔇 Voice off";
+};
+document.getElementById("voicePosition").onchange=e=>{
+  voicePosition=e.target.value;
+  lastVoiceStepKey="";
+  showKidCue(current || getAllPlays()[0]);
 };
 document.getElementById("pathBtn").onclick=()=>{runnerPathMode=!runnerPathMode; document.getElementById("pathBtn").classList.toggle("active",runnerPathMode); if(current) draw(); };
 document.getElementById("savePlayCard").onclick=saveCurrentPlayCard;

@@ -9,6 +9,8 @@ Single self-contained `index.html` - no build, no dependencies.
 Features:
 - defensive-focused play library with batting and bunting reads
 - voice narration for the coaching cue and what players need to do
+- position-specific voice coaching for pitcher, catcher, infield, and outfield responsibilities
+- step-based voice cues that cancel stale speech instead of building a queue during playback
 - alignment presets for standard, shifted, 10U, and 12U teaching models
 - custom play creation and save/export for coach cards
 - read-react-throw teaching loop with pre-pitch assignments, bunt communication, and backup responsibilities
