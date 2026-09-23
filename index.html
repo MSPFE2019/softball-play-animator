@@ -3,987 +3,527 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Softball Play Animator — Hitting &amp; Bunting</title>
+<title>10U Softball Defense Trainer</title>
+<link rel="icon" href="data:,">
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
 <style>
-  :root{--bg:#0e1520;--panel:#16202e;--line:#243349;--txt:#e8eef7;--muted:#9fb0c6;--accent:#f5a524;--accent2:#3aa0ff;--dirt:#b0703b;}
-  *{box-sizing:border-box}
-  body{margin:0;font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--txt)}
-  header{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
-  h1{font-size:18px;margin:0} header span{color:var(--muted);font-size:12px}
-  .wrap{display:flex;gap:16px;padding:16px;align-items:flex-start;flex-wrap:wrap}
-  .field{flex:1 1 620px;min-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
-  .side{width:330px;flex:0 0 330px;display:flex;flex-direction:column;gap:12px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
-  .card h2{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-  button,select{font:inherit;color:var(--txt);background:#1e2b3d;border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer}
-  button:hover{border-color:var(--accent)}
-  button.primary{background:var(--accent);color:#1a1207;border-color:var(--accent);font-weight:600}
-  button.active{background:var(--accent2);border-color:var(--accent2);color:#04121f;font-weight:600}
-  button.warn{background:#3e2f18;border-color:#9d6b2b;color:#f8d392}
-  .mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .mini-grid button{width:100%}
-  .voice-pill{display:inline-flex;align-items:center;gap:6px;background:#122432;border:1px solid var(--line);border-radius:999px;padding:4px 8px;color:var(--muted);font-size:11px}
-  .voice-pill.on{color:#caf3ce;border-color:#396d52;background:#132f1f}
-  .coach-cue{display:block;border:1px dashed var(--accent);border-radius:8px;padding:8px 10px;background:#1b1a0d;color:#f8dba3;font-size:12px;line-height:1.5}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row+.row{margin-top:8px}
-  label{color:var(--muted);font-size:12px}
-  ul.plays{list-style:none;margin:0;padding:0;max-height:250px;overflow:auto}
-  ul.plays li{padding:7px 9px;border-radius:8px;cursor:pointer;border:1px solid transparent}
-  ul.plays li:hover{background:#1e2b3d}
-  ul.plays li.sel{background:#1e2b3d;border-color:var(--accent)}
-  ul.plays li small{display:block;color:var(--muted)}
-  svg{width:100%;height:auto;display:block;touch-action:none}
-  .legend{display:flex;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:8px}
-  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-  input[type=range]{width:130px}
-  #desc{color:var(--txt);font-weight:600}
-  #why{color:var(--muted);font-size:12.5px;display:block;margin-top:4px;line-height:1.5}
-  footer{padding:10px 18px;color:var(--muted);font-size:12px;border-top:1px solid var(--line)}
-
-  .fit-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 6px;border-radius:999px;margin-left:6px;vertical-align:1px}
-  .fit-good{background:#1f4d33;color:#7fe3a4}
-  .fit-bad{background:#4d2a1f;color:#f0a37f}
-  li[data-id] small.why{display:block;color:#7891ad;font-size:11px;margin-top:3px;font-style:italic}
-  .depthcap{color:var(--muted);font-size:11.5px;flex-basis:100%;margin-top:2px}
-  .suggest{border:1px dashed var(--accent);border-radius:8px;padding:8px;font-size:12px;color:#f5cf8f;margin-top:8px;background:#241a08}
-
-  #guideBtn{margin-left:auto}
-  #guideOverlay{position:fixed;inset:0;background:rgba(4,8,14,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:24px}
-  #guideOverlay.open{display:flex}
-  #guidePanel{background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:760px;width:100%;max-height:88vh;overflow:auto;padding:22px 26px}
-  #guidePanel h2{font-size:20px;margin:0 0 4px}
-  #guidePanel .sub{color:var(--muted);font-size:12px;margin-bottom:14px}
-  #guidePanel section{margin:18px 0;padding-top:14px;border-top:1px solid var(--line)}
-  #guidePanel section:first-of-type{border-top:none;padding-top:0}
-  #guidePanel h3{margin:0 0 6px;font-size:15px;color:var(--accent2)}
-  #guidePanel p,#guidePanel li{color:#cdd8e6;font-size:13.5px;line-height:1.6}
-  #guidePanel ul{margin:6px 0 0;padding-left:20px}
-  #guidePanel table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
-  #guidePanel th,#guidePanel td{border:1px solid var(--line);padding:6px 8px;text-align:left}
-  #guidePanel th{color:var(--muted);font-weight:600}
-  #guideClose{position:sticky;top:0;float:right;margin-top:-4px}
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+:root {
+  --field-grass: var(--cp-success);
+  --field-dirt: var(--cp-warning);
+  --defense: var(--cp-link);
+  --runner: var(--cp-warning);
+  --ball: var(--cp-surface);
+  --coach: var(--cp-accent-soft);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font: 14px/1.45 "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--cp-border);
+  background: var(--cp-bg-elevated);
+}
+h1 { margin: 0; font-size: 24px; }
+h2 { margin: 0 0 10px; font-size: 13px; color: var(--cp-text-muted); letter-spacing: .08em; text-transform: uppercase; }
+h3 { margin: 0 0 6px; font-size: 16px; }
+p { margin: 0; }
+.subtitle { margin-top: 4px; color: var(--cp-text-muted); }
+.layout { display: grid; grid-template-columns: minmax(360px, 1fr) 380px; gap: 16px; padding: 16px; align-items: start; }
+.panel {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+}
+.field-panel { padding: 12px; }
+.side { display: grid; gap: 12px; }
+.card { padding: 14px; }
+.situation-list { display: grid; gap: 8px; max-height: 420px; overflow: auto; }
+button {
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface-soft);
+  color: var(--cp-text);
+  border-radius: 0.625rem;
+  padding: 8px 10px;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+button:hover { border-color: var(--cp-accent); }
+button.primary, button.selected {
+  background: var(--cp-accent);
+  color: var(--cp-accent-fg);
+  border-color: var(--cp-accent);
+}
+.situation {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+.situation strong { font-size: 14px; }
+.situation span { color: var(--cp-text-muted); font-size: 12px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.controls button { text-align: center; }
+.callout {
+  background: var(--coach);
+  border: 1px dashed var(--cp-accent);
+  border-radius: 0.625rem;
+  padding: 10px;
+  color: var(--cp-text);
+}
+.key-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.key-box {
+  background: var(--cp-surface-soft);
+  border: 1px solid var(--cp-border);
+  border-radius: 0.625rem;
+  padding: 10px;
+}
+.key-box b { display: block; margin-bottom: 2px; }
+.key-box span { color: var(--cp-text-muted); font-size: 12px; }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; color: var(--cp-text-muted); font-size: 12px; margin-top: 8px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: -1px; }
+svg { width: 100%; display: block; background: var(--cp-surface-soft); border-radius: 0.625rem; }
+.step-label { margin-top: 10px; font-weight: 700; min-height: 22px; }
+.why { color: var(--cp-text-muted); font-size: 13px; margin-top: 6px; }
+.badge { display: inline-block; padding: 2px 7px; border-radius: 999px; background: var(--cp-accent-soft); color: var(--cp-accent); font-size: 11px; font-weight: 700; margin-left: 5px; }
+footer { padding: 10px 20px; color: var(--cp-text-muted); border-top: 1px solid var(--cp-border); font-size: 12px; }
+@media (max-width: 920px) {
+  .layout { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
 <header>
-  <h1>⚾ Softball Play Animator</h1>
-  <span>Draggable defense (9 or 10 players) · hitting &amp; bunting · animated coverage &amp; throws</span>
-  <button id="guideBtn">📘 Strategy Guide</button>
+  <h1>10U Softball Defense Trainer</h1>
+  <p class="subtitle">Simple animated reps for bunt defense, right-base throws, wild pitch coverage, and force-vs-tag decisions.</p>
 </header>
 
-<div class="wrap">
-  <div class="field">
-    <svg id="svg" viewBox="0 0 800 720" aria-label="Softball field"></svg>
+<main class="layout">
+  <section class="panel field-panel">
+    <svg id="field" viewBox="0 0 800 720" aria-label="Animated softball field"></svg>
     <div class="legend">
-      <span><i class="dot" style="background:#3aa0ff"></i>Defense</span>
-      <span><i class="dot" style="background:#f5a524"></i>Runner</span>
-      <span><i class="dot" style="background:#fff"></i>Ball</span>
-      <span>Dashed = ball path · Solid blue = fielder path</span>
+      <span><i class="dot" style="background:var(--defense)"></i>Defense</span>
+      <span><i class="dot" style="background:var(--runner)"></i>Runner</span>
+      <span><i class="dot" style="background:var(--ball)"></i>Ball</span>
+      <span>Solid = player path · Dashed = ball path</span>
     </div>
-  </div>
+    <div class="controls">
+      <button id="playBtn" class="primary">Play animation</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="resetBtn">Reset</button>
+      <button id="nextBtn">Next situation</button>
+    </div>
+    <div id="stepLabel" class="step-label"></div>
+    <div id="why" class="why"></div>
+  </section>
 
-  <div class="side">
-    <div class="card">
-      <h2>Formation</h2>
-      <div class="row">
-        <button id="f9" class="fnum active">9 Players</button>
-        <button id="f10" class="fnum">10 Players (4 OF)</button>
-      </div>
-      <div class="row">
-        <label>Depth</label>
-        <button data-depth="normal" class="depth active">Normal</button>
-        <button data-depth="in" class="depth">Infield In</button>
-        <button data-depth="bunt" class="depth">Bunt D</button>
-      </div>
-      <div class="row">
-        <label>Align</label>
-        <button data-align="standard" class="align active">Standard</button>
-        <button data-align="shift" class="align">Shift</button>
-      </div>
-      <div class="row">
-        <button data-align="u10" class="align">10U</button>
-        <button data-align="u12" class="align">12U</button>
-      </div>
-      <div class="depthcap" id="depthCap"></div>
-      <div class="row"><button id="reset">Reset positions</button></div>
-    </div>
+  <aside class="side">
+    <section class="panel card">
+      <h2>Pick one 10U situation</h2>
+      <div id="situations" class="situation-list"></div>
+    </section>
 
-    <div class="card">
-      <h2>Situation</h2>
-      <div class="row">
-        <label>Runners on</label>
-        <button data-base="@1" class="rb">1st</button>
-        <button data-base="@2" class="rb">2nd</button>
-        <button data-base="@3" class="rb">3rd</button>
+    <section class="panel card">
+      <h2>Coach cue</h2>
+      <div id="coachCue" class="callout"></div>
+      <div class="key-grid">
+        <div class="key-box"><b>1. Ball</b><span>Who gets it?</span></div>
+        <div class="key-box"><b>2. Base</b><span>Who covers?</span></div>
+        <div class="key-box"><b>3. Throw</b><span>Where does it go?</span></div>
+        <div class="key-box"><b>4. Out</b><span>Force or tag?</span></div>
       </div>
-      <div class="row">
-        <label>Outs</label>
-        <button data-outs="0" class="ob active">0</button>
-        <button data-outs="1" class="ob">1</button>
-        <button data-outs="2" class="ob">2</button>
-      </div>
-      <div class="row"><span id="sit" style="color:var(--muted)"></span></div>
-      <div id="suggestBox"></div>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>Play</h2>
-      <div class="row">
-        <button data-type="hitting" class="ptype active">Hitting</button>
-        <button data-type="bunting" class="ptype">Bunting</button>
-      </div>
-      <div class="row">
-        <button id="newCustomPlay">+ Custom play</button>
-        <button id="editCurrentPlay">Edit</button>
-      </div>
-      <ul class="plays" id="playList"></ul>
-    </div>
+    <section class="panel card">
+      <h2>10U rule of thumb</h2>
+      <p><strong>Get one sure out.</strong> If the throw is not clean, hold the ball and stop the next base. Young players learn faster when the decision tree is small.</p>
+    </section>
+  </aside>
+</main>
 
-    <div class="card">
-      <h2>Coach tools</h2>
-      <div class="mini-grid">
-        <button id="voiceBtn" class="warn">🔊 Voice on</button>
-        <button id="pathBtn">⇄ Runner path</button>
-        <button id="savePlayCard">Save card</button>
-        <button id="exportPlayCard">Export JSON</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button id="drillBtn">Live read drill</button>
-        <button id="kidCueBtn">What should they do?</button>
-      </div>
-      <div class="row" style="margin-top:8px"><span id="voiceState" class="voice-pill on">Voice cues enabled</span></div>
-      <div class="row" style="margin-top:8px"><span id="coachDrillText" class="coach-cue">Read the ball. Get to it. Make the right throw.</span></div>
-    </div>
-
-    <div class="card">
-      <h2>Playback</h2>
-      <div class="row">
-        <button id="play" class="primary">▶ Play</button>
-        <button id="pause">⏸ Pause</button>
-        <button id="restart">⟲ Restart</button>
-      </div>
-      <div class="row"><label>Speed</label><input id="speed" type="range" min="0.25" max="2" step="0.25" value="1"><span id="speedLbl">1×</span></div>
-      <div class="row"><label>Timeline</label><input id="scrub" type="range" min="0" max="1000" value="0" step="1"></div>
-      <div class="row"><span id="desc"></span></div>
-      <div class="row"><span id="why"></span></div>
-    </div>
-  </div>
-</div>
-<footer>Drag any fielder to adjust alignment. Use the coach tools to save, narrate, and teach 10U-12U defensive reads.</footer>
-
-<div id="guideOverlay">
-  <div id="guidePanel">
-    <button id="guideClose">✕ Close</button>
-    <h2>📘 Softball Strategy Guide</h2>
-    <div class="sub">The "why" behind every call on this field — read this alongside the plays on the left.</div>
-    <div id="guideBody"></div>
-  </div>
-</div>
-
-<div id="customPlayOverlay" style="position:fixed;inset:0;background:rgba(4,8,14,.6);display:none;align-items:center;justify-content:center;z-index:60;padding:24px;">
-  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;max-width:640px;width:100%;padding:20px 22px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h2 style="margin:0;font-size:18px;">Custom play editor</h2>
-      <button id="closeCustomPlay">✕ Close</button>
-    </div>
-    <div style="display:grid;gap:10px;">
-      <label>Play name<input id="customName" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);"></label>
-      <label>Type<select id="customType" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);">
-        <option value="hitting">Hitting</option>
-        <option value="bunting">Bunting</option>
-      </select></label>
-      <label>Short description<textarea id="customDesc" rows="3" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
-      <label>Coach cue<textarea id="customWhy" rows="3" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
-      <label>Situation note<textarea id="customNote" rows="2" style="width:100%;margin-top:6px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:#12202d;color:var(--txt);resize:vertical;"></textarea></label>
-      <div class="row" style="justify-content:flex-end;">
-        <button id="deleteCustomPlay" class="warn" style="display:none;">Delete</button>
-        <button id="saveCustomPlay" class="primary">Save custom play</button>
-      </div>
-    </div>
-  </div>
-</div>
+<footer>Built for short practice reps: show the animation, ask the four questions, then run it live on the field.</footer>
 
 <script>
 "use strict";
-const NS="http://www.w3.org/2000/svg";
-const svg=document.getElementById("svg");
 
-/* ---- Geometry. Base tokens are @-prefixed so they never collide with player keys ---- */
-const HOME={x:400,y:620},B1={x:520,y:500},B2={x:400,y:380},B3={x:280,y:500},MOUND={x:400,y:520};
-const BASES={"@H":HOME,"@1":B1,"@2":B2,"@3":B3,"@M":MOUND};
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("field");
+const HOME = { x: 400, y: 620 };
+const B1 = { x: 520, y: 500 };
+const B2 = { x: 400, y: 380 };
+const B3 = { x: 280, y: 500 };
+const MOUND = { x: 400, y: 520 };
+const BASES = { H: HOME, "1B": B1, "2B": B2, "3B": B3, PITCHER: MOUND };
 
-const BASE_POS={
-  P:{x:400,y:518},C:{x:400,y:666},"1B":{x:500,y:528},"2B":{x:472,y:432},
-  SS:{x:328,y:432},"3B":{x:300,y:528},LF:{x:205,y:268},CF:{x:400,y:205},
-  RF:{x:595,y:268},RC:{x:505,y:225}
-};
-const TEN_SHIFT={LF:{x:160,y:250},CF:{x:295,y:200},RF:{x:640,y:250},RC:{x:505,y:200}};
-const DEPTH_ADJ={
-  normal:{},
-  in:{"1B":{x:472,y:558},"3B":{x:328,y:558},"2B":{x:456,y:470},SS:{x:344,y:470}},
-  bunt:{"1B":{x:452,y:572},"3B":{x:348,y:572},"2B":{x:492,y:512},SS:{x:372,y:452},P:{x:400,y:550}}
-};
-const DEPTH_CAP={
-  normal:"Standard depth for most counts — full range on grounders, no run conceded at the plate.",
-  in:"Trades range for a faster throw home. Call it with the tying/winning run on 3rd and outs to spare — a ball hit past the infield now scores that run.",
-  bunt:"Corners creep in anticipating a bunt. Use it when the runner situation and count make a sacrifice likely (runner on 1st/2nd, 0-1 outs) — leaves the defense vulnerable to a hard-hit ball."
-};
-const ORDER=["P","C","1B","2B","SS","3B","LF","CF","RF"];
-const CUSTOM_PLAY_KEY="softball-play-animator.custom-plays";
-const ALIGNMENTS={
-  standard:{label:"Standard", players:{}, note:"Default 9-player spacing with the normal infield and outfield lanes."},
-  shift:{label:"Shifted", players:{"1B":{x:470,y:548},"3B":{x:330,y:548},"2B":{x:450,y:470},"SS":{x:350,y:470},"C":{x:400,y:660}}, note:"Infield shifts toward the pull side to take away the bunt or middle gap."},
-  u10:{label:"10U hands-on", players:{"LF":{x:160,y:250},"CF":{x:300,y:195},"RF":{x:645,y:250},"RC":{x:520,y:200},"1B":{x:485,y:540},"3B":{x:315,y:540}}, note:"Younger players benefit from a more compact, teachable alignment with extra outfield coverage."},
-  u12:{label:"12U aggressive", players:{"1B":{x:485,y:528},"3B":{x:315,y:528},"2B":{x:470,y:430},"SS":{x:330,y:430},"CF":{x:410,y:200},"RF":{x:610,y:255}}, note:"More aggressive corners and a deeper center field read for strong, athletic 12U teams."}
+const START = {
+  P: { x: 400, y: 520 },
+  C: { x: 400, y: 660 },
+  "1B": { x: 500, y: 535 },
+  "2B": { x: 470, y: 438 },
+  SS: { x: 330, y: 438 },
+  "3B": { x: 300, y: 535 },
+  LF: { x: 210, y: 270 },
+  CF: { x: 400, y: 210 },
+  RF: { x: 590, y: 270 }
 };
 
-let tenPlayers=false,depth="normal",playType="hitting",alignment="standard";
-let onBase=new Set(),outs=0;
-let start={};   // starting position per player (user-draggable)
-let voiceEnabled=true;
-let customPlays=[];
-let customEditorId=null;
-let runnerPathMode=false;
-let lastVoiceStep="";
-let drillIndex=0;
-
-function kidCueText(play){
-  if(!play) return 'Read the ball. Get to it. Make the right throw.';
-  const name = (play.name || '').toLowerCase();
-  if(name.includes('double play') || name.includes('ground ball')) return 'Read the ball. Step in. Get the ball out front. Throw to second, then finish the play.';
-  if(name.includes('left') || name.includes('right') || name.includes('gap')) return 'Take the ball in your zone. Charge the ball. Get it to the cutoff. Throw to the right base.';
-  if(name.includes('first-and-third') || name.includes('throw-through')) return 'Hold the runner. Get the throw to second. Keep your eyes on the runner at third.';
-  if(name.includes('bases loaded') || name.includes('force at home')) return 'Get the ball. Take the force at home. Make the tag before the runner gets there.';
-  if(name.includes('pickle') || name.includes('rundown')) return 'Chase the runner. Keep the ball low. Run them toward the tag and finish the play.';
-  if(name.includes('hit-and-run') || name.includes('runner going')) return 'Listen for the sign. Read the pitch. Get the ball moving and protect the runner.';
-  if(name.includes('squeeze') || name.includes('bunt')) return 'Read the bunt. Get ready early. Field it clean and make the throw to the right base.';
-  if(name.includes('drag')) return 'Crash on the bunt. Cover your base. Finish the play with a quick throw.';
-  return 'Read the ball. Get to it. Make a smart throw and finish the play.';
-}
-
-function showKidCue(play){
-  const text = kidCueText(play);
-  const cueEl = document.getElementById('coachDrillText');
-  if(cueEl) cueEl.textContent = text;
-  if(voiceEnabled){ resetNarration(); speakNarration(text); }
-  return text;
-}
-
-function nextLiveDrill(){
-  const plays = getAllPlays();
-  const next = plays[(drillIndex++) % Math.max(1, plays.length)] || plays[0];
-  if(current !== next) selectPlay(next);
-  return showKidCue(next);
-}
-
-function loadCustomPlays(){
-  try { const val=JSON.parse(localStorage.getItem(CUSTOM_PLAY_KEY)||"[]"); return Array.isArray(val)?val:[]; }
-  catch { return []; }
-}
-
-function saveCustomPlays(){ localStorage.setItem(CUSTOM_PLAY_KEY, JSON.stringify(customPlays)); }
-
-function getAllPlays(){ return [...PLAYS, ...customPlays]; }
-
-function speakNarration(text, queue){
-  if(!voiceEnabled || !('speechSynthesis' in window) || !text) return;
-  const utterance=new SpeechSynthesisUtterance(text);
-  utterance.rate=0.92;
-  utterance.pitch=1.05;
-  utterance.lang='en-US';
-  if(!queue) window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
-}
-
-function resetNarration(){
-  lastVoiceStep="";
-  if('speechSynthesis' in window) window.speechSynthesis.cancel();
-}
-
-function speakPlayStep(play, t){
-  if(!voiceEnabled || !play || t<0) return;
-  const steps=play.steps||[];
-  let idx=-1;
-  for(let i=steps.length-1;i>=0;i--){
-    if(t>=steps[i].t[0] && t<=steps[i].t[1]){ idx=i; break; }
+const SITUATIONS = [
+  {
+    id: "bunt-empty",
+    title: "Bunt defense - no runners",
+    badge: "Bunt",
+    summary: "Corners crash, 2B covers first, throw goes to first.",
+    cue: "Call: Ball, ball, ball. Corners crash. 2B covers first. Take the easy out at first.",
+    why: "With no runners on, there is no lead runner to stop. The simple answer is field the bunt and throw to first.",
+    bases: [],
+    steps: [
+      { label: "Pitch is bunted softly in front of the plate.", t: [0, .18], ball: ["P", { x: 430, y: 595 }] },
+      { label: "1B and 3B crash. 2B runs to cover first.", t: [.18, .46], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["P", { x: 410, y: 570 }]] },
+      { label: "Field it clean, throw to first for one sure out.", t: [.46, .76], ball: [{ x: 448, y: 588 }, B1] },
+      { label: "Finish: out at first.", t: [.76, 1] }
+    ],
+    runners: [{ from: HOME, to: B1, t: [.18, .82] }]
+  },
+  {
+    id: "bunt-runner-first",
+    title: "Bunt - runner on 1st",
+    badge: "Right base",
+    summary: "If clean, get the lead out at second. If not clean, take first.",
+    cue: "Call before the pitch: if it is clean, go two. If it is bobbled, go one.",
+    why: "The runner on first is forced to run. Touching second with the ball beats the lead runner without needing a tag.",
+    bases: ["1B"],
+    steps: [
+      { label: "Bunt goes toward first base.", t: [0, .18], ball: ["P", { x: 452, y: 590 }] },
+      { label: "1B charges. SS covers second. 2B covers first.", t: [.18, .48], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }]] },
+      { label: "Clean field: throw to second for the force.", t: [.48, .74], ball: [{ x: 452, y: 590 }, B2] },
+      { label: "Finish: lead runner out at second.", t: [.74, 1] }
+    ],
+    runners: [
+      { from: B1, to: B2, t: [.18, .78] },
+      { from: HOME, to: B1, t: [.18, .9] }
+    ]
+  },
+  {
+    id: "bunt-runner-second",
+    title: "Bunt - runner on 2nd",
+    badge: "Tag read",
+    summary: "Runner is not forced. Check her, then throw to first unless she breaks.",
+    cue: "Look the runner back. Throw to first. If she runs at you, tag or run her back.",
+    why: "A runner on second is not forced when first base is empty. To get her out, the defense must tag the runner.",
+    bases: ["2B"],
+    steps: [
+      { label: "Bunt is down toward third base.", t: [0, .18], ball: ["P", { x: 355, y: 590 }] },
+      { label: "3B fields. SS covers third. 2B covers first.", t: [.18, .48], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }]] },
+      { label: "3B checks the runner, then throws to first.", t: [.48, .76], ball: [{ x: 355, y: 590 }, B1] },
+      { label: "Finish: sure out at first, runner held.", t: [.76, 1] }
+    ],
+    runners: [
+      { from: B2, to: { x: 315, y: 455 }, t: [.18, .45], holdAtEnd: true },
+      { from: HOME, to: B1, t: [.18, .9] }
+    ]
+  },
+  {
+    id: "wild-pitch",
+    title: "Wild pitch / passed ball",
+    badge: "Cover",
+    summary: "Catcher gets ball. Pitcher covers home. Corners protect the bases.",
+    cue: "Pitcher yells home, home, home and covers the plate. Catcher finds the ball and tosses home.",
+    why: "The catcher leaves the plate to get the ball, so the pitcher must cover home. No one watches the play; everyone covers somewhere.",
+    bases: ["3B"],
+    steps: [
+      { label: "Pitch gets away behind the catcher.", t: [0, .24], ball: ["P", { x: 455, y: 690 }] },
+      { label: "Catcher finds the ball. Pitcher sprints home.", t: [.24, .55], move: [["C", { x: 455, y: 690 }], ["P", HOME], ["1B", B1], ["3B", B3]] },
+      { label: "Catcher tosses to pitcher covering home.", t: [.55, .76], ball: [{ x: 455, y: 690 }, HOME] },
+      { label: "Finish: tag at the plate.", t: [.76, 1] }
+    ],
+    runners: [{ from: B3, to: HOME, t: [.24, .85] }]
+  },
+  {
+    id: "force-home",
+    title: "Bases loaded - force at home",
+    badge: "Force",
+    summary: "Closest force is home. Touch the plate; no tag needed.",
+    cue: "Bases loaded means force everywhere. Go home if the ball is in front of you.",
+    why: "Because every base behind the runner is occupied, the runner from third must go. The catcher only needs the ball on home plate before the runner arrives.",
+    bases: ["1B", "2B", "3B"],
+    steps: [
+      { label: "Grounder to the pitcher.", t: [0, .22], ball: ["P", { x: 398, y: 560 }] },
+      { label: "Catcher stays on home. Corners hold their bases.", t: [.22, .5], move: [["C", HOME], ["1B", B1], ["3B", B3], ["2B", B2]] },
+      { label: "Pitcher throws home for the force.", t: [.5, .72], ball: [{ x: 398, y: 560 }, HOME] },
+      { label: "Finish: force out at home.", t: [.72, 1] }
+    ],
+    runners: [
+      { from: B3, to: HOME, t: [.22, .76] },
+      { from: B2, to: B3, t: [.22, .76] },
+      { from: B1, to: B2, t: [.22, .76] }
+    ]
+  },
+  {
+    id: "tag-runner-second",
+    title: "Runner on 2nd only - tag situation",
+    badge: "Tag",
+    summary: "No force at third. Tag the runner if she goes.",
+    cue: "If the runner is not forced, do not just touch the base. Get the ball to the glove and tag her.",
+    why: "This is the difference 10U players must know: forced runner equals touch the base; unforced runner equals tag the runner.",
+    bases: ["2B"],
+    steps: [
+      { label: "Ground ball to shortstop.", t: [0, .22], ball: ["P", "SS"] },
+      { label: "Runner breaks toward third. 3B covers the bag.", t: [.22, .48], move: [["SS", { x: 338, y: 435 }], ["3B", B3]] },
+      { label: "SS throws to third.", t: [.48, .68], ball: ["SS", B3] },
+      { label: "Finish: 3B tags the runner.", t: [.68, 1] }
+    ],
+    runners: [{ from: B2, to: B3, t: [.22, .76] }]
   }
-  const line = idx>=0 && steps[idx].note ? steps[idx].note : (play.desc || play.name);
-  const key = `${play.id}#${idx}`;
-  if(key===lastVoiceStep) return;
-  lastVoiceStep=key;
-  speakNarration(line, true);
-}
-
-function buildStart(){
-  const keys=ORDER.concat(tenPlayers?["RC"]:[]);
-  start={};
-  keys.forEach(k=>{
-    const b=BASE_POS[k];
-    const t=tenPlayers&&TEN_SHIFT[k]?TEN_SHIFT[k]:null;
-    const d=(DEPTH_ADJ[depth]||{})[k];
-    start[k]={x:(d&&d.x)??(t&&t.x)??b.x, y:(d&&d.y)??(t&&t.y)??b.y, label:k};
-  });
-}
-
-/* ---- Plays. move.to / ball.from / ball.to accept: "@1" base, player key, or {x,y} ---- */
-const PLAYS=[
-{id:"h1",type:"hitting",name:"Ground ball to SS — 6-4-3 double play",desc:"SS fields, flips to 2B covering second, relay to 1B for two.",
- why:"With a force at second and first, a 6-4-3 turns one ground ball into two outs. It only works because the runner on first is forced — the shortstop doesn't need to tag anyone, just beat the runner to the bag, so speed matters more than precision on the first throw.",
- situ:{need:["@1"],outsLt:2,note:"Best with a runner on 1st and fewer than 2 outs — with 2 outs there's no double play value, just take the sure out at first."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.34],ball:{from:{x:400,y:642},to:"SS"},note:"Ground ball to shortstop"},
-  {t:[.12,.36],move:[{who:"2B",to:"@2"},{who:"1B",to:"@1"},{who:"CF",to:{x:390,y:330}}],note:"2B covers second, CF backs up"},
-  {t:[.34,.5],ball:{from:"SS",to:"@2"},arc:14,note:"Flip to second — force out #1"},
-  {t:[.5,.7],ball:{from:"@2",to:"@1"},arc:20,note:"Turn two — throw to first"},
-  {t:[.7,1],note:"Double play complete"}
- ],runners:[{from:"@H",to:"@1",t:[.12,.72]}]},
-
-{id:"h2",type:"hitting",name:"Base hit to left — cutoff and hold",desc:"LF fields, SS is the cutoff, ball to second to hold the runner.",
- why:"The cutoff (SS) lines up between the outfielder and the base the throw is going to. Even if the throw home or to third isn't realistic, showing the cutoff discourages runners from taking an extra base, and lets the defense redirect the ball if someone gets greedy.",
- situ:{need:[],outsLt:3,note:"Standard positioning on any base hit to left with a runner running — works regardless of outs."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.4],ball:{from:{x:400,y:642},to:"LF"},note:"Line drive into left field"},
-  {t:[.15,.42],move:[{who:"SS",to:{x:288,y:352}},{who:"CF",to:{x:290,y:245}},{who:"3B",to:"@3"},{who:"2B",to:"@2"}],note:"SS sets the cutoff, CF backs up"},
-  {t:[.42,.62],ball:{from:"LF",to:"SS"},arc:18,note:"Throw to the cutoff"},
-  {t:[.62,.82],ball:{from:"SS",to:"@2"},arc:14,note:"Ball to second base"},
-  {t:[.82,1],note:"Runner held at first"}
- ],runners:[{from:"@H",to:"@1",t:[.12,.55]}]},
-
-{id:"h3",type:"hitting",name:"Fly to right — tag up at third",desc:"RF catches, 2B lines up the cutoff, throw home for the play at the plate.",
- why:"On any fly ball with a runner on third and fewer than 2 outs, the defense assumes the runner tags and runs. The cutoff (2B here) lets the catcher call for the ball to be cut if the throw is off-line, instead of it sailing past the plate for extra bases.",
- situ:{need:["@3"],outsLt:2,note:"Runner on 3rd with 0 or 1 out is a run threat on any fly ball — outfield depth and arm strength decide whether you even attempt a throw home."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.42],ball:{from:{x:400,y:642},to:"RF"},arc:70,note:"Deep fly ball to right field"},
-  {t:[.2,.45],move:[{who:"2B",to:{x:492,y:352}},{who:"1B",to:"@1"},{who:"CF",to:{x:530,y:245}},{who:"3B",to:"@3"}],note:"2B lines up the cutoff"},
-  {t:[.45,.66],ball:{from:"RF",to:"2B"},arc:22,note:"Runner tags — throw comes in"},
-  {t:[.66,.88],ball:{from:"2B",to:"C"},arc:18,note:"Cut and fire home"},
-  {t:[.88,1],note:"Play at the plate"}
- ],runners:[{from:"@3",to:"@H",t:[.42,.9]}]},
-
-{id:"h4",type:"hitting",name:"Gap shot right-center (uses 10th fielder)",desc:"In 10-player, RC takes the gap; 2B is the relay and SS covers second.",
- why:"A 4th outfielder shrinks the gaps a 3-outfield alignment can't cover. The relay (2B) exists because no outfielder can throw 200+ feet accurately — the relay turns a slow, weak throw into two accurate ones and keeps extra bases off the board.",
- situ:{need:[],outsLt:3,note:"Only available in the 10-player formation — switch to '10 Players' above to see this coverage."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.42],ball:{from:{x:400,y:642},to:{x:520,y:175}},arc:60,note:"Ball splits the right-center gap"},
-  {t:[.12,.45],move:[{who:"RC",to:{x:520,y:175}},{who:"CF",to:{x:470,y:200}},{who:"RF",to:{x:600,y:215}},{who:"2B",to:{x:480,y:330}},{who:"SS",to:"@2"}],note:"RC runs it down, 2B is the relay"},
-  {t:[.45,.68],ball:{from:{x:520,y:175},to:"2B"},arc:30,note:"Relay throw to the middle"},
-  {t:[.68,.88],ball:{from:"2B",to:"@2"},arc:16,note:"Ball to second base"},
-  {t:[.88,1],note:"Runner holds at second — double"}
- ],runners:[{from:"@H",to:"@2",t:[.12,.85],via:["@1"]}]},
-
-{id:"h5",type:"hitting",name:"First-and-third defense — throw-through",desc:"Runners on 1st and 3rd, less than 2 outs, batter takes a pitch. On a stolen-base attempt, 2B fakes the relay so the throw goes straight through to second while the pitcher stays alert to the run from third.",
- why:"This is the classic first-and-third headache: if you just throw through to second normally, the runner on third strolls home while you record an out at second. The defense either (a) sends the ball through to second only if the run isn't given away for free, or (b) has the catcher fake the throw and quick-throw back to the pitcher, who can turn and pick off a runner who wandered too far off third. Communication before the pitch decides which look you use.",
- situ:{need:["@1","@3"],outsLt:2,note:"Requires runners on both 1st AND 3rd with fewer than 2 outs — the signature 'first and third' situation."},
- steps:[
-  {t:[0,.1],ball:{from:"P",to:{x:400,y:642}},note:"Pitch — runner from 1st breaks for 2nd"},
-  {t:[.1,.32],ball:{from:{x:400,y:642},to:"C"},note:"Catcher receives, sees the steal"},
-  {t:[.1,.34],move:[{who:"2B",to:{x:465,y:410}},{who:"SS",to:"@2"}],note:"2B cheats toward the throw lane, SS covers 2nd"},
-  {t:[.34,.58],ball:{from:"C",to:"@2"},arc:24,note:"Throw goes through to second — R3 held honest by the pitcher's eyes"},
-  {t:[.58,.8],move:[{who:"P",to:{x:400,y:560}}],note:"Pitcher squares back toward third in case R3 strays"},
-  {t:[.8,1],note:"Out at second if the throw beats the runner; run saved either way"}
- ],runners:[{from:"@1",to:"@2",t:[.1,.55]},{from:"@3",to:"@3",t:[0,1],hold:true}]},
-
-{id:"h6",type:"hitting",name:"Bases loaded — force at home",desc:"Ground ball with the bases loaded: catcher takes the force at the plate for the safest, fastest out.",
- why:"With the bases loaded every runner is forced, so the defense should almost always take the closest force — home plate — because it removes the lead runner and the run at the same time. Going for a double play at another base is only worth the risk if the batter is very slow or the ball is hit right at an infielder.",
- situ:{need:["@1","@2","@3"],outsLt:2,note:"Bases loaded, less than 2 outs: take the force at home first unless the double play is a lock."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.32],ball:{from:{x:400,y:642},to:"3B"},note:"Ground ball to third base"},
-  {t:[.12,.34],move:[{who:"1B",to:"@1"},{who:"2B",to:"@2"},{who:"SS",to:{x:340,y:400}}],note:"Everyone covers their bag"},
-  {t:[.32,.55],ball:{from:"3B",to:"C"},arc:14,note:"Throw goes home for the force — lead runner is out"},
-  {t:[.55,1],note:"One out, bases still loaded — pressure stays on the defense"}
- ],runners:[{from:"@3",to:"@H",t:[.12,.5]},{from:"@2",to:"@3",t:[.12,.5]},{from:"@1",to:"@2",t:[.12,.5]}]},
-
-{id:"h7",type:"hitting",name:"Rundown (pickle) between 2nd and 3rd",desc:"Runner is caught off base; SS and 3B execute a rundown, throwing as few times as possible to close the gap and tag the runner.",
- why:"Every extra throw in a rundown is a chance for an error that lets the runner advance anyway. The rule of thumb: chase the runner hard toward the base ahead, force the throw late, and never throw across your own body. Fewer throws, shorter throws, always run the runner toward the tag.",
- situ:{need:["@2"],outsLt:2,note:"Happens when a runner on 2nd strays too far — teach it as a drill, but the same footwork applies at any base."},
- steps:[
-  {t:[0,.15],ball:{from:"P",to:"SS"},note:"Runner is caught leaning too far off 2nd"},
-  {t:[.15,.3],move:[{who:"SS",to:{x:355,y:410}},{who:"3B",to:{x:320,y:490}}],note:"SS closes the gap, 3B holds the bag"},
-  {t:[.3,.5],ball:{from:"SS",to:"3B"},arc:8,note:"One throw — runner committed back toward 3rd"},
-  {t:[.5,.65],move:[{who:"3B",to:{x:295,y:502}}],note:"3B closes for the tag, no second throw needed"},
-  {t:[.65,1],note:"Runner tagged out — rundown won in one throw"}
- ],runners:[{from:"@2",to:{x:300,y:460},t:[.15,.5]}]},
-
-{id:"h8",type:"hitting",name:"Hit-and-run — runner going on the pitch",desc:"Runner on first breaks with the pitch; batter is obligated to swing and put the ball in play to protect the runner.",
- why:"The hit-and-run trades a stolen-base risk for a bigger reward: if the batter makes contact, the runner is already moving and can often reach third on a single. The trade-off is real — a pop-up with the runner going can turn into an easy double play, so it's a calculated risk for contact hitters, not for free swingers.",
- situ:{need:["@1"],outsLt:2,note:"Called with a runner on 1st and a contact hitter at the plate — avoid with a batter prone to pop-ups or a 2-strike count."},
- steps:[
-  {t:[0,.14],ball:{from:"P",to:{x:400,y:642}},note:"Runner breaks with the pitch"},
-  {t:[.14,.4],ball:{from:{x:400,y:642},to:{x:250,y:340}},note:"Batter protects the runner — grounder to the left side"},
-  {t:[.14,.42],move:[{who:"SS",to:{x:250,y:345}},{who:"3B",to:"@3"}],note:"SS has to range far — the hole is bigger with the runner going"},
-  {t:[.42,.62],ball:{from:"SS",to:"@1"},arc:20,note:"Long throw across the diamond"},
-  {t:[.62,1],note:"Runner motoring to third on the ground ball"}
- ],runners:[{from:"@1",to:"@3",t:[.14,.75]},{from:"@H",to:"@1",t:[.14,.85]}]},
-
-{id:"b1",type:"bunting",name:"Sacrifice bunt — 1B charges",desc:"Corners crash, 2B covers first, SS covers second, P backs the middle.",
- why:"A sac bunt trades an out for a base — you're only willing to do that when the run the runner represents is worth more than the out. 1B charges because the bunt is almost always toward that side; 2B has to cover first since 1B has abandoned the bag.",
- situ:{need:["@1"],outsLt:2,note:"Classic 'productive out' call: runner on 1st (or 2nd), 0-1 outs, when one run matters more than a big inning — think late innings, close game."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.26],ball:{from:{x:400,y:642},to:{x:446,y:598}},note:"Bunt down the first-base line"},
-  {t:[.12,.4],move:[{who:"1B",to:{x:446,y:596}},{who:"3B",to:{x:348,y:566}},{who:"2B",to:"@1"},{who:"SS",to:"@2"},{who:"P",to:{x:420,y:566}}],note:"1B charges, 2B covers first"},
-  {t:[.4,.66],ball:{from:{x:446,y:598},to:"@1"},arc:18,note:"Throw to 2B covering first"},
-  {t:[.66,1],note:"Out at first, runner advances to second"}
- ],runners:[{from:"@H",to:"@1",t:[.12,.7]},{from:"@1",to:"@2",t:[.12,.6]}]},
-
-{id:"b2",type:"bunting",name:"Bunt to third — 3B fields, SS covers",desc:"3B attacks the ball, SS rotates to third, 2B takes first.",
- why:"A batter can angle a bunt toward third specifically to avoid the charging first baseman. When that happens, 3B has to attack it aggressively because the throw across the diamond to first is long — the defense trades a longer throw for taking away the easier bunt location.",
- situ:{need:["@1"],outsLt:2,note:"Same run-early situation as any sac bunt, but the ball is bunted toward third instead of first — often the batter's intent against an aggressive charging 1B."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
-  {t:[.12,.26],ball:{from:{x:400,y:642},to:{x:356,y:598}},note:"Bunt down the third-base line"},
-  {t:[.12,.42],move:[{who:"3B",to:{x:356,y:596}},{who:"SS",to:"@3"},{who:"1B",to:{x:462,y:568}},{who:"2B",to:"@1"},{who:"P",to:{x:378,y:562}}],note:"3B charges, SS rotates to third"},
-  {t:[.42,.7],ball:{from:{x:356,y:598},to:"@1"},arc:24,note:"Long throw across to first"},
-  {t:[.7,1],note:"Batter retired at first"}
- ],runners:[{from:"@H",to:"@1",t:[.12,.72]}]},
-
-{id:"b3",type:"bunting",name:"Suicide squeeze — throw home",desc:"Runner breaks from third the instant the pitcher starts the delivery; batter must bunt no matter what. P fields and fires home.",
- why:"'Suicide' because the runner is committed before the ball is even bunted — if the batter misses it, the runner is dead at the plate with no chance to stop. High risk, high reward: it's nearly impossible to defend if executed right, since the defense can't react until the ball is already down.",
- situ:{need:["@3"],outsLt:2,note:"Runner on 3rd, 0-1 outs, needs a batter who can be trusted to get the bunt down — never call this with 2 outs, since a missed bunt just ends the inning with the runner erased for nothing."},
- steps:[
-  {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"Runner breaks — squeeze is on"},
-  {t:[.12,.26],ball:{from:{x:400,y:642},to:{x:400,y:594}},note:"Bunt back to the pitcher"},
-  {t:[.12,.4],move:[{who:"P",to:{x:400,y:588}},{who:"1B",to:{x:462,y:566}},{who:"3B",to:{x:348,y:566}},{who:"2B",to:"@1"},{who:"SS",to:"@2"}],note:"Pitcher attacks the ball"},
-  {t:[.4,.62],ball:{from:{x:400,y:594},to:"C"},arc:10,note:"Throw home"},
-  {t:[.62,1],note:"Catcher applies the tag"}
- ],runners:[{from:"@3",to:"@H",t:[.05,.72]},{from:"@H",to:"@1",t:[.12,.8]}]},
-
-{id:"b5",type:"bunting",name:"Safety squeeze — runner waits to react",desc:"Runner on third holds until they see the bunt is down safely, then breaks for home — lower risk than the suicide squeeze.",
- why:"The safety squeeze protects the runner: if the bunt is popped up or missed, the runner never left third and the defense gets nothing extra. It costs a little in speed (the runner starts later) but it's much harder to blow up than a suicide squeeze, especially with a less reliable bunter.",
- situ:{need:["@3"],outsLt:2,note:"Same situation as a suicide squeeze but safer — use this version when you're not 100% sure the batter gets the bunt down."},
- steps:[
-  {t:[0,.14],ball:{from:"P",to:{x:400,y:642}},note:"Pitch — runner holds at third, watching the ball"},
-  {t:[.14,.3],ball:{from:{x:400,y:642},to:{x:408,y:596}},note:"Bunt is down safely in front of the plate"},
-  {t:[.14,.42],move:[{who:"C",to:{x:408,y:600}},{who:"1B",to:{x:462,y:566}},{who:"2B",to:"@1"},{who:"P",to:{x:420,y:565}}],note:"Catcher and pitcher both converge — no clean force"},
-  {t:[.3,.4],note:"Runner sees the bunt is safe and breaks for home"},
-  {t:[.42,.65],ball:{from:{x:408,y:600},to:"3B"},arc:16,note:"Only play left is a long shot back to third — too late, run scores"},
-  {t:[.65,1],note:"Run scores; batter safe or thrown out at first — either way the run counted"}
- ],runners:[{from:"@3",to:"@H",t:[.3,.68]},{from:"@H",to:"@1",t:[.14,.75]}]},
-
-{id:"b4",type:"bunting",name:"Drag bunt — wheel play",desc:"Wheel rotation: both corners crash, SS covers third, 2B covers first.",
- why:"The 'wheel' rotates the middle infielders to cover the bags the crashing corners abandon. It's an aggressive, high-risk call — if the batter fakes the bunt and swings away, both gaps down the lines are wide open — so it's usually saved for a bunt-happy team or a clear sacrifice count.",
- situ:{need:["@1","@2"],outsLt:2,note:"Best with runners on 1st AND 2nd, 0-1 outs, against a team that bunts often — the double-crash defense takes away both bunt lanes at once."},
- steps:[
-  {t:[0,.14],move:[{who:"3B",to:{x:352,y:578}},{who:"1B",to:{x:456,y:576}},{who:"SS",to:"@3"},{who:"2B",to:"@1"}],ball:{from:"P",to:{x:400,y:642}},note:"Wheel rotation on the pitch"},
-  {t:[.14,.3],ball:{from:{x:400,y:642},to:{x:352,y:594}},note:"Drag bunt to the third-base side"},
-  {t:[.14,.42],move:[{who:"3B",to:{x:352,y:592}},{who:"P",to:{x:390,y:570}}],note:"3B attacks the ball"},
-  {t:[.42,.72],ball:{from:{x:352,y:594},to:"@1"},arc:24,note:"Throw to first"},
-  {t:[.72,1],note:"Bang-bang play at first"}
- ],runners:[{from:"@H",to:"@1",t:[.14,.75]}]}
 ];
 
-function buildStart(){
-  const keys=ORDER.concat(tenPlayers?["RC"]:[]);
-  start={};
-  keys.forEach(k=>{
-    const base=BASE_POS[k];
-    const shift=ALIGNMENTS[alignment]&&ALIGNMENTS[alignment].players&&ALIGNMENTS[alignment].players[k];
-    const depthMove=(DEPTH_ADJ[depth]||{})[k];
-    const x=(depthMove&&depthMove.x) ?? (shift&&shift.x) ?? base.x;
-    const y=(depthMove&&depthMove.y) ?? (shift&&shift.y) ?? base.y;
-    start[k]={x,y,label:k};
+let currentIndex = 0;
+let t = 0;
+let playing = false;
+let raf = 0;
+let lastFrame = 0;
+const DURATION = 5200;
+
+function add(parent, name, attrs, text) {
+  const node = document.createElementNS(NS, name);
+  Object.entries(attrs || {}).forEach(([key, value]) => node.setAttribute(key, value));
+  if (text != null) node.textContent = text;
+  parent.appendChild(node);
+  return node;
+}
+
+function resolve(point, positions) {
+  if (typeof point === "string") return positions[point] || BASES[point] || START[point];
+  return point;
+}
+
+function lerp(a, b, amount) {
+  return a + (b - a) * amount;
+}
+
+function clamp(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function ease(value) {
+  return value < .5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
+}
+
+function drawField() {
+  svg.innerHTML = "";
+  add(svg, "rect", { x: 0, y: 0, width: 800, height: 720, rx: 10, fill: "var(--field-grass)", opacity: .74 });
+  add(svg, "path", { d: `M ${HOME.x} ${HOME.y + 10} L ${B3.x - 58} ${B3.y - 12} A 176 176 0 0 1 ${B1.x + 58} ${B1.y - 12} Z`, fill: "var(--field-dirt)", opacity: .72 });
+  add(svg, "line", { x1: HOME.x, y1: HOME.y, x2: HOME.x - 345, y2: HOME.y - 345, stroke: "var(--cp-surface)", "stroke-width": 3, opacity: .8 });
+  add(svg, "line", { x1: HOME.x, y1: HOME.y, x2: HOME.x + 345, y2: HOME.y - 345, stroke: "var(--cp-surface)", "stroke-width": 3, opacity: .8 });
+  add(svg, "path", { d: `M ${HOME.x} ${HOME.y} L ${B1.x} ${B1.y} L ${B2.x} ${B2.y} L ${B3.x} ${B3.y} Z`, fill: "none", stroke: "var(--cp-surface)", "stroke-width": 2, opacity: .72 });
+  add(svg, "circle", { cx: MOUND.x, cy: MOUND.y, r: 24, fill: "var(--field-dirt)", opacity: .82 });
+  [B1, B2, B3].forEach(base => add(svg, "rect", { x: base.x - 9, y: base.y - 9, width: 18, height: 18, fill: "var(--cp-surface)", transform: `rotate(45 ${base.x} ${base.y})` }));
+  add(svg, "path", { d: `M ${HOME.x - 11} ${HOME.y - 8} L ${HOME.x + 11} ${HOME.y - 8} L ${HOME.x + 11} ${HOME.y + 4} L ${HOME.x} ${HOME.y + 13} L ${HOME.x - 11} ${HOME.y + 4} Z`, fill: "var(--cp-surface)" });
+  [["1B", B1], ["2B", B2], ["3B", B3], ["HOME", HOME]].forEach(([label, point]) => {
+    add(svg, "text", { x: point.x, y: point.y - 18, "text-anchor": "middle", "font-size": 12, "font-weight": 700, fill: "var(--cp-text)" }, label);
   });
 }
 
-function updateAlignmentCap(){
-  const info=ALIGNMENTS[alignment]||ALIGNMENTS.standard;
-  document.getElementById("depthCap").textContent = `${DEPTH_CAP[depth] || ""} ${info.note}`.trim();
-}
-
-function exportPlayCard(){
-  const play=current || getAllPlays()[0];
-  if(!play) return;
-  const payload={
-    name:play.name,
-    type:play.type,
-    description:play.desc,
-    coachCue:play.why,
-    situation: play.situ || {},
-    exportDate:new Date().toISOString(),
-    alignment,
-    depth,
-    tenPlayers,
-    notes: play.steps ? play.steps.map(s=>s.note).filter(Boolean) : []
-  };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`${play.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'softball-play'}.json`;
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-}
-
-function saveCurrentPlayCard(){
-  const play=current || getAllPlays()[0];
-  if(!play) return;
-  const text=`Play: ${play.name}\nType: ${play.type}\nKey read: ${play.desc}\nCoach cue: ${play.why || 'Use the aligned defense and communicate clearly'}\nSituation: ${play.situ && play.situ.note ? play.situ.note : 'Coach read'}\n`; 
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).catch(()=>{});
-  }
-  speakNarration(`${play.name}. ${play.desc}. ${play.why || ''}`);
-  alert('Play card copied to clipboard and voice cue ready.');
-}
-
-function openCustomEditor(play){
-  const overlay=document.getElementById('customPlayOverlay');
-  const form={
-    name:document.getElementById('customName'),
-    type:document.getElementById('customType'),
-    desc:document.getElementById('customDesc'),
-    why:document.getElementById('customWhy'),
-    note:document.getElementById('customNote')
-  };
-  const deleteBtn=document.getElementById('deleteCustomPlay');
-  if(play){
-    customEditorId=play.id;
-    form.name.value=play.name||'';
-    form.type.value=play.type||'hitting';
-    form.desc.value=play.desc||'';
-    form.why.value=play.why||'';
-    form.note.value=(play.situ&&play.situ.note)||'';
-    deleteBtn.style.display = customPlays.some(p=>p.id===play.id) ? 'inline-block' : 'none';
-  } else {
-    customEditorId=null;
-    form.name.value='';
-    form.type.value='hitting';
-    form.desc.value='';
-    form.why.value='';
-    form.note.value='';
-    deleteBtn.style.display='none';
-  }
-  overlay.style.display='flex';
-}
-
-function closeCustomEditor(){
-  document.getElementById('customPlayOverlay').style.display='none';
-}
-
-function saveCustomPlayFromEditor(){
-  const overlay=document.getElementById('customPlayOverlay');
-  const form={
-    name:document.getElementById('customName').value.trim(),
-    type:document.getElementById('customType').value,
-    desc:document.getElementById('customDesc').value.trim(),
-    why:document.getElementById('customWhy').value.trim(),
-    note:document.getElementById('customNote').value.trim()
-  };
-  if(!form.name || !form.desc){
-    alert('Give the custom play a name and description before saving.');
-    return;
-  }
-  const item={
-    id: customEditorId || `custom-${Date.now()}`,
-    type:form.type,
-    name:form.name,
-    desc:form.desc,
-    why:form.why || 'Teach the players to communicate, get to the ball, and finish the play with the correct throw.',
-    situ:{need:[],outsLt:3,note:form.note || 'Use this for a teaching rep in a similar game situation.'},
-    steps:[
-      {t:[0,.12],ball:{from:'P',to:{x:400,y:642}},note:'Pitch is on the way'},
-      {t:[.12,.5],ball:{from:{x:400,y:642},to:'SS'},note:'Defense reads the ball and gets to the right base'},
-      {t:[.5,1],note:'Finish the play with a clean catch and throw'}
-    ],
-    runners:[]
-  };
-  if(customEditorId && customPlays.some(p=>p.id===customEditorId)){
-    const idx=customPlays.findIndex(p=>p.id===customEditorId);
-    if(idx>=0) customPlays[idx]=item;
-  } else {
-    customPlays.push(item);
-    customEditorId=item.id;
-  }
-  saveCustomPlays();
-  closeCustomEditor();
-  renderList();
-  updateSuggestions();
-}
-
-function deleteCustomPlayFromEditor(){
-  if(!customEditorId) return;
-  customPlays=customPlays.filter(p=>p.id!==customEditorId);
-  saveCustomPlays();
-  closeCustomEditor();
-  renderList();
-  updateSuggestions();
-}
-
-/* ---- Rendering ---- */
-let gField,gPaths,gRunners,gPlayers,gBall;
-const el=n=>document.createElementNS(NS,n);
-function add(p,n,a,txt){const e=el(n);for(const k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;p.appendChild(e);return e;}
-
-function drawField(){
-  svg.innerHTML="";
-  add(svg,"defs",{}).innerHTML='<radialGradient id="grass" cx="50%" cy="82%"><stop offset="0%" stop-color="#3d9460"/><stop offset="100%" stop-color="#1d5636"/></radialGradient>';
-  gField=add(svg,"g",{});gPaths=add(svg,"g",{});gRunners=add(svg,"g",{});gPlayers=add(svg,"g",{});gBall=add(svg,"g",{});
-  add(gField,"rect",{x:0,y:0,width:800,height:720,fill:"url(#grass)",rx:12});
-  add(gField,"path",{d:`M ${HOME.x-345} ${HOME.y-40} A 372 372 0 0 1 ${HOME.x+345} ${HOME.y-40}`,fill:"none",stroke:"#0d3a25","stroke-width":10});
-  add(gField,"path",{d:`M ${HOME.x} ${HOME.y+8} L ${B3.x-58} ${B3.y-12} A 176 176 0 0 1 ${B1.x+58} ${B1.y-12} Z`,fill:"var(--dirt)",opacity:.85});
-  add(gField,"line",{x1:HOME.x,y1:HOME.y,x2:HOME.x-345,y2:HOME.y-345,stroke:"#fff","stroke-width":3,opacity:.75});
-  add(gField,"line",{x1:HOME.x,y1:HOME.y,x2:HOME.x+345,y2:HOME.y-345,stroke:"#fff","stroke-width":3,opacity:.75});
-  add(gField,"path",{d:`M ${HOME.x} ${HOME.y} L ${B1.x} ${B1.y} L ${B2.x} ${B2.y} L ${B3.x} ${B3.y} Z`,fill:"none",stroke:"#fff","stroke-width":2,opacity:.5});
-  add(gField,"circle",{cx:MOUND.x,cy:MOUND.y,r:26,fill:"#c98450",opacity:.9});
-  [B1,B2,B3].forEach(b=>add(gField,"rect",{x:b.x-9,y:b.y-9,width:18,height:18,fill:"#fff",transform:`rotate(45 ${b.x} ${b.y})`}));
-  add(gField,"path",{d:`M ${HOME.x-10} ${HOME.y-8} L ${HOME.x+10} ${HOME.y-8} L ${HOME.x+10} ${HOME.y+4} L ${HOME.x} ${HOME.y+13} L ${HOME.x-10} ${HOME.y+4} Z`,fill:"#fff"});
-}
-
-/* ---- Pure evaluation: given t, compute every player's position from scratch ---- */
-const clamp01=v=>v<0?0:v>1?1:v;
-const lerp=(a,b,f)=>a+(b-a)*f;
-const ease=f=>f<.5?2*f*f:1-Math.pow(-2*f+2,2)/2;
-
-function resolve(ref,pos){
-  if(ref==null)return null;
-  if(typeof ref==="object")return {x:ref.x,y:ref.y};
-  if(BASES[ref])return {x:BASES[ref].x,y:BASES[ref].y};
-  if(pos&&pos[ref])return {x:pos[ref].x,y:pos[ref].y};
-  if(start[ref])return {x:start[ref].x,y:start[ref].y};
-  return null;
-}
-
-function evaluate(play,t){
-  const pos={},trails={};
-  for(const k in start)pos[k]={x:start[k].x,y:start[k].y};
-  const segs=[];
-  // apply movement segments in chronological order; each starts from where the player was
-  (play.steps||[]).forEach(s=>{
-    (s.move||[]).forEach(m=>{
-      if(!start[m.who])return;
-      segs.push({who:m.who,to:m.to,t0:s.t[0],t1:s.t[1]});
+function computePositions(situation, time) {
+  const positions = {};
+  Object.entries(START).forEach(([key, value]) => positions[key] = { ...value });
+  const trails = [];
+  situation.steps.forEach(step => {
+    (step.move || []).forEach(([who, to]) => {
+      const end = resolve(to, positions);
+      const from = START[who];
+      const amount = ease(clamp((time - step.t[0]) / (step.t[1] - step.t[0])));
+      if (time >= step.t[0]) {
+        positions[who] = { x: lerp(from.x, end.x, amount), y: lerp(from.y, end.y, amount) };
+        trails.push([from, positions[who]]);
+      }
+      if (time >= step.t[1]) positions[who] = { ...end };
     });
   });
-  segs.sort((a,b)=>a.t0-b.t0);
-  segs.forEach(sg=>{
-    const from={x:pos[sg.who].x,y:pos[sg.who].y};
-    const to=resolve(sg.to,pos);
-    if(!to)return;
-    const f=ease(clamp01((t-sg.t0)/(sg.t1-sg.t0||1)));
-    if(t>=sg.t0){
-      pos[sg.who]={x:lerp(from.x,to.x,f),y:lerp(from.y,to.y,f)};
-      (trails[sg.who]=trails[sg.who]||[]).push([from,{x:pos[sg.who].x,y:pos[sg.who].y}]);
-    }
-    if(t>=sg.t1)pos[sg.who]={x:to.x,y:to.y};
-  });
-  return {pos,trails,segs};
+  return { positions, trails };
 }
 
-function render(play,t){
-  gPaths.innerHTML="";gRunners.innerHTML="";gPlayers.innerHTML="";gBall.innerHTML="";
-  if(!play){ // static
-    for(const k in start)drawPlayer(k,start[k].x,start[k].y);
+function drawPlayer(key, point) {
+  const group = add(svg, "g", {});
+  add(group, "circle", { cx: point.x, cy: point.y, r: 16, fill: "var(--defense)", stroke: "var(--cp-surface)", "stroke-width": 2 });
+  add(group, "text", { x: point.x, y: point.y + 4, "text-anchor": "middle", "font-size": 11, "font-weight": 700, fill: "var(--cp-surface)" }, key);
+}
+
+function drawRunner(runner, index, time) {
+  const amount = ease(clamp((time - runner.t[0]) / (runner.t[1] - runner.t[0])));
+  if (time < runner.t[0]) return;
+  const point = {
+    x: lerp(runner.from.x, runner.to.x, amount),
+    y: lerp(runner.from.y, runner.to.y, amount)
+  };
+  add(svg, "line", { x1: runner.from.x, y1: runner.from.y, x2: point.x, y2: point.y, stroke: "var(--runner)", "stroke-width": 4, opacity: .82, "stroke-linecap": "round" });
+  add(svg, "circle", { cx: point.x, cy: point.y, r: 13, fill: "var(--runner)", stroke: "var(--cp-surface)", "stroke-width": 2 });
+  add(svg, "text", { x: point.x, y: point.y + 4, "text-anchor": "middle", "font-size": 10, "font-weight": 700, fill: "var(--cp-text)" }, `R${index + 1}`);
+}
+
+function drawBasesOccupied(bases) {
+  bases.forEach(base => {
+    const point = BASES[base];
+    add(svg, "circle", { cx: point.x, cy: point.y, r: 17, fill: "var(--runner)", opacity: .36, stroke: "var(--cp-text)", "stroke-width": 2 });
+  });
+}
+
+function drawBall(situation, positions, time) {
+  let ball = null;
+  situation.steps.forEach(step => {
+    if (!step.ball || time < step.t[0]) return;
+    const from = resolve(step.ball[0], positions);
+    const to = resolve(step.ball[1], positions);
+    const amount = clamp((time - step.t[0]) / (step.t[1] - step.t[0]));
+    add(svg, "line", { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: "var(--ball)", "stroke-width": 2.5, "stroke-dasharray": "7 6", opacity: time > step.t[1] ? .32 : .9 });
+    ball = {
+      x: lerp(from.x, to.x, amount),
+      y: lerp(from.y, to.y, amount) - Math.sin(amount * Math.PI) * 18
+    };
+  });
+  if (ball) add(svg, "circle", { cx: ball.x, cy: ball.y, r: 7, fill: "var(--ball)", stroke: "var(--cp-danger)", "stroke-width": 1.5 });
+}
+
+function currentStep(situation, time) {
+  let label = situation.summary;
+  situation.steps.forEach(step => {
+    if (time >= step.t[0]) label = step.label;
+  });
+  return label;
+}
+
+function render() {
+  const situation = SITUATIONS[currentIndex];
+  drawField();
+  drawBasesOccupied(situation.bases);
+  const { positions, trails } = computePositions(situation, t);
+  trails.forEach(([from, to]) => add(svg, "line", { x1: from.x, y1: from.y, x2: to.x, y2: to.y, stroke: "var(--defense)", "stroke-width": 3, opacity: .58, "stroke-linecap": "round" }));
+  situation.runners.forEach((runner, index) => drawRunner(runner, index, t));
+  Object.entries(positions).forEach(([key, point]) => drawPlayer(key, point));
+  drawBall(situation, positions, t);
+  document.getElementById("stepLabel").textContent = currentStep(situation, t);
+}
+
+function selectSituation(index) {
+  currentIndex = index;
+  t = 0;
+  stop();
+  const situation = SITUATIONS[currentIndex];
+  document.querySelectorAll(".situation").forEach((button, idx) => button.classList.toggle("selected", idx === index));
+  document.getElementById("coachCue").textContent = situation.cue;
+  document.getElementById("why").textContent = situation.why;
+  render();
+}
+
+function buildSituationList() {
+  const list = document.getElementById("situations");
+  SITUATIONS.forEach((situation, index) => {
+    const button = document.createElement("button");
+    button.className = "situation";
+    button.innerHTML = `<strong>${situation.title}<span class="badge">${situation.badge}</span></strong><span>${situation.summary}</span>`;
+    button.addEventListener("click", () => selectSituation(index));
+    list.appendChild(button);
+  });
+}
+
+function loop(timestamp) {
+  if (!playing) return;
+  if (!lastFrame) lastFrame = timestamp;
+  t = Math.min(1, t + (timestamp - lastFrame) / DURATION);
+  lastFrame = timestamp;
+  render();
+  if (t >= 1) {
+    playing = false;
+    lastFrame = 0;
     return;
   }
-  const {pos,trails}=evaluate(play,t);
-  // fielder trails
-  for(const k in trails)trails[k].forEach(([a,b])=>
-    add(gPaths,"line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"#cfe6ff","stroke-width":2.5,opacity:.7,"stroke-linecap":"round"}));
-
-  // ball: find the active (or last completed) ball segment
-  let note=play.desc,ball=null;
-  play.steps.forEach(s=>{
-    if(t>=s.t[0]&&s.note)note=s.note;
-    if(!s.ball)return;
-    const a=resolve(s.ball.from,pos),b=resolve(s.ball.to,pos);
-    if(!a||!b)return;
-    if(t>=s.t[0]){
-      const f=clamp01((t-s.t[0])/(s.t[1]-s.t[0]||1));
-      add(gPaths,"line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"#fff","stroke-width":2,"stroke-dasharray":"7 6",opacity:t>s.t[1]?.35:.9});
-      if(f<1||!ball)ball={x:lerp(a.x,b.x,f),y:lerp(a.y,b.y,f)-Math.sin(f*Math.PI)*(s.arc||0)};
-      if(t<=s.t[1])ball={x:lerp(a.x,b.x,f),y:lerp(a.y,b.y,f)-Math.sin(f*Math.PI)*(s.arc||0)};
-    }
-  });
-
-  // runners
-  buildRunners(play).forEach((r,i)=>{
-    const [r0,r1]=r.t;
-    if(t<r0)return;
-    if(r.hold){
-      const p=resolve(r.from,pos);
-      const gh=add(gRunners,"g",{});
-      add(gh,"circle",{cx:p.x,cy:p.y,r:13,fill:"#f5a524",opacity:.75,stroke:"#3a2a06","stroke-width":2,"stroke-dasharray":"4 3"});
-      add(gh,"text",{x:p.x,y:p.y+4,"text-anchor":"middle","font-size":10,"font-weight":"700",fill:"#3a2a06"},"R"+(i+1));
-      return;
-    }
-    const pts=[resolve(r.from,pos)].concat((r.via||[]).map(v=>resolve(v,pos)),[resolve(r.to,pos)]);
-    const f=ease(clamp01((t-r0)/(r1-r0||1)));
-    const legs=pts.length-1,scaled=f*legs,li=Math.min(Math.floor(scaled),legs-1),lf=scaled-li;
-    const a=pts[li],b=pts[li+1];
-    const rx=lerp(a.x,b.x,lf),ry=lerp(a.y,b.y,lf);
-    for(let j=0;j<li;j++)add(gRunners,"line",{x1:pts[j].x,y1:pts[j].y,x2:pts[j+1].x,y2:pts[j+1].y,stroke:"#f5a524","stroke-width":3,opacity:.65});
-    add(gRunners,"line",{x1:a.x,y1:a.y,x2:rx,y2:ry,stroke:"#f5a524","stroke-width":3,opacity:.85});
-    const g=add(gRunners,"g",{});
-    add(g,"circle",{cx:rx,cy:ry,r:13,fill:"#f5a524",stroke:"#3a2a06","stroke-width":2});
-    add(g,"text",{x:rx,y:ry+4,"text-anchor":"middle","font-size":10,"font-weight":"700",fill:"#3a2a06"},"R"+(i+1));
-  });
-
-  for(const k in pos)drawPlayer(k,pos[k].x,pos[k].y);
-  if(ball)add(gBall,"circle",{cx:ball.x,cy:ball.y,r:7,fill:"#fff",stroke:"#c00","stroke-width":1.5});
-  if(runnerPathMode && play && play.runners && play.runners.length){
-    const runPath = buildRunners(play);
-    runPath.forEach((r,i)=>{
-      const from=resolve(r.from,pos); const to=resolve(r.to,pos);
-      if(!from || !to) return;
-      const g=add(gRunners,"g",{});
-      add(g,"circle",{cx:from.x,cy:from.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
-      add(g,"circle",{cx:to.x,cy:to.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
-      g.addEventListener('pointerdown', ev=>{
-        ev.stopPropagation();
-        const handle = ev.target; const drag = (evt)=>{
-          const pt=toSvg(evt);
-          if(handle.getAttribute('cx')===String(from.x) && handle.getAttribute('cy')===String(from.y)) {
-            r.from={x:pt.x,y:pt.y};
-          } else {
-            r.to={x:pt.x,y:pt.y};
-          }
-          render(play,t);
-        };
-        const stop=()=>{window.removeEventListener('pointermove',drag);window.removeEventListener('pointerup',stop);};
-        window.addEventListener('pointermove',drag);
-        window.addEventListener('pointerup',stop);
-      });
-    });
-  }
-  drawScoreboard();
-  document.getElementById("desc").textContent=note;
-  speakPlayStep(play,t);
+  raf = requestAnimationFrame(loop);
 }
 
-function buildRunners(play){
-  const list=(play.runners||[]).map(r=>Object.assign({},r));
-  const used=new Set(list.map(r=>r.from));
-  const NEXT={"@1":"@2","@2":"@3","@3":"@H"};
-  const batterRuns=list.some(r=>r.from==="@H");
-  // forced advance: a runner is forced only if every base behind them is occupied
-  const forced=b=>{
-    if(!batterRuns)return false;
-    if(b==="@1")return true;
-    if(b==="@2")return onBase.has("@1");
-    if(b==="@3")return onBase.has("@1")&&onBase.has("@2");
-    return false;
-  };
-  onBase.forEach(b=>{
-    if(used.has(b))return;
-    list.push(forced(b)
-      ? {from:b,to:NEXT[b],t:[.14,.78]}
-      : {from:b,to:b,t:[0,1],hold:true});
-  });
-  return list;
+function play() {
+  if (t >= 1) t = 0;
+  if (playing) return;
+  playing = true;
+  lastFrame = 0;
+  raf = requestAnimationFrame(loop);
 }
 
-
-function drawScoreboard(){
-  const g=add(gBall,"g",{});
-  add(g,"rect",{x:18,y:18,width:158,height:60,rx:9,fill:"#0c1420",opacity:.85,stroke:"#243349"});
-  add(g,"text",{x:32,y:41,"font-size":12,fill:"#9fb0c6"},"OUTS");
-  for(let i=0;i<3;i++)
-    add(g,"circle",{cx:80+i*20,cy:37,r:7,fill:i<outs?"#e5484d":"#22303f",stroke:"#3a4a5e"});
-  add(g,"text",{x:32,y:66,"font-size":12,fill:"#9fb0c6"},"ON BASE");
-  const mini={"@1":[130,62],"@2":[116,52],"@3":[102,62]};
-  ["@1","@2","@3"].forEach(b=>{
-    const [x,y]=mini[b];
-    add(g,"rect",{x:x-5,y:y-5,width:10,height:10,transform:`rotate(45 ${x} ${y})`,
-      fill:onBase.has(b)?"#f5a524":"#22303f",stroke:"#3a4a5e"});
-  });
+function stop() {
+  playing = false;
+  if (raf) cancelAnimationFrame(raf);
+  raf = 0;
+  lastFrame = 0;
 }
 
-function drawPlayer(k,x,y){
-  const g=add(gPlayers,"g",{class:"pl","data-k":k,style:"cursor:grab"});
-  add(g,"circle",{cx:x,cy:y,r:15,fill:"#3aa0ff",stroke:"#0b2740","stroke-width":2});
-  add(g,"text",{x:x,y:y+4,"text-anchor":"middle","font-size":11,"font-weight":"700",fill:"#04121f","pointer-events":"none"},k);
-  g.addEventListener("pointerdown",ev=>{
-    ev.preventDefault();stop();
-    g.setPointerCapture(ev.pointerId);
-    const mv=e=>{const p=toSvg(e);start[k].x=p.x;start[k].y=p.y;draw();};
-    const up=()=>{g.removeEventListener("pointermove",mv);g.removeEventListener("pointerup",up);};
-    g.addEventListener("pointermove",mv);g.addEventListener("pointerup",up);
-  });
-}
-function toSvg(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse());}
+document.getElementById("playBtn").addEventListener("click", play);
+document.getElementById("pauseBtn").addEventListener("click", stop);
+document.getElementById("resetBtn").addEventListener("click", () => { stop(); t = 0; render(); });
+document.getElementById("nextBtn").addEventListener("click", () => selectSituation((currentIndex + 1) % SITUATIONS.length));
 
-/* ---- Playback ---- */
-let current=null,t=0,speed=1,playing=false,raf=null,last=0;
-const DUR=9000;
-function draw(){render(current,t);document.getElementById("scrub").value=Math.round(t*1000);}
-function loop(ts){
-  if(!playing)return;
-  if(!last)last=ts;
-  t=Math.min(1,t+((ts-last)/DUR)*speed);last=ts;
-  draw();
-  if(t>=1){playing=false;last=0;return;}
-  raf=requestAnimationFrame(loop);
-}
-function play(){if(!current)return;if(t>=1)t=0;if(playing)return;playing=true;last=0;raf=requestAnimationFrame(loop);}
-function stop(){playing=false;if(raf)cancelAnimationFrame(raf);raf=null;last=0;resetNarration();}
-
-function fitPlay(p){
-  if(!p.situ)return null;
-  const needOk=(p.situ.need||[]).every(b=>onBase.has(b));
-  const outsOk=p.situ.outsLt==null||outs<p.situ.outsLt;
-  return {ok:needOk&&outsOk,note:p.situ.note};
-}
-
-function selectPlay(p){stop();current=p;t=0;
-  [...document.querySelectorAll("#playList li")].forEach(li=>li.classList.toggle("sel",li.dataset.id===p.id));
-  const w=document.getElementById("why");
-  w.textContent=p.why?("Why: "+p.why):"";
-  showKidCue(p);
-  draw();
-}
-
-function renderList(){
-  const ul=document.getElementById("playList");ul.innerHTML="";
-  const list=getAllPlays().filter(p=>p.type===playType);
-  list.forEach(p=>{
-    const li=document.createElement("li");li.dataset.id=p.id;
-    const fit=fitPlay(p);
-    const badge=fit?`<span class="fit-badge ${fit.ok?"fit-good":"fit-bad"}">${fit.ok?"FITS NOW":"OFF-SITUATION"}</span>`:"";
-    const customMarker = p.id && String(p.id).startsWith('custom-') ? ' ✨ ' : ' ';
-    li.innerHTML=`<strong>${customMarker}${p.name}${badge}</strong><small>${p.desc}</small>${fit&&fit.note?`<small class="why">${fit.note}</small>`:""}`;
-    li.onclick=()=>selectPlay(p);ul.appendChild(li);
-  });
-  if(list.length && (!current || current.type!==playType || !list.some(p=>p.id===current.id)))selectPlay(list[0]);
-  updateSuggestions();
-}
-
-function updateSuggestions(){
-  const box=document.getElementById("suggestBox");
-  const fitting=getAllPlays().filter(p=>p.situ&&fitPlay(p).ok);
-  if(!fitting.length){box.innerHTML="";return;}
-  const names=fitting.slice(0,3).map(p=>p.name.split(" — ")[0]).join(", ");
-  box.innerHTML=`<div class="suggest">💡 With this situation, consider: <strong>${names}</strong></div>`;
-}
-
-function rebuild(){stop();buildStart();drawField();t=0;draw();updateDepthCap();}
-function updateDepthCap(){
-  const info=ALIGNMENTS[alignment]||ALIGNMENTS.standard;
-  document.getElementById("depthCap").textContent = `${DEPTH_CAP[depth] || ""} ${info.note}`.trim();
-}
-
-const tog=(sel,b)=>{document.querySelectorAll(sel).forEach(x=>x.classList.remove("active"));b.classList.add("active");};
-customPlays=loadCustomPlays();
-document.getElementById("f9").onclick=e=>{tenPlayers=false;tog(".fnum",e.currentTarget);rebuild();};
-document.getElementById("f10").onclick=e=>{tenPlayers=true;tog(".fnum",e.currentTarget);rebuild();};
-document.querySelectorAll(".depth").forEach(b=>b.onclick=()=>{depth=b.dataset.depth;tog(".depth",b);rebuild();});
-document.querySelectorAll(".align").forEach(b=>b.onclick=()=>{alignment=b.dataset.align;tog(".align",b);rebuild();});
-document.querySelectorAll(".ptype").forEach(b=>b.onclick=()=>{playType=b.dataset.type;tog(".ptype",b);renderList();});
-document.querySelectorAll(".rb").forEach(b=>b.onclick=()=>{
-  const k=b.dataset.base;
-  if(onBase.has(k))onBase.delete(k);else onBase.add(k);
-  b.classList.toggle("active",onBase.has(k));
-  updateSit();stop();t=0;draw();renderList();
-});
-document.querySelectorAll(".ob").forEach(b=>b.onclick=()=>{outs=+b.dataset.outs;tog(".ob",b);updateSit();draw();renderList();});
-function updateSit(){
-  const names={"@1":"1st","@2":"2nd","@3":"3rd"};
-  const on=["@1","@2","@3"].filter(b=>onBase.has(b)).map(b=>names[b]);
-  document.getElementById("sit").textContent=
-    (on.length?on.join(" & ")+" occupied":"Bases empty")+" · "+outs+" out"+(outs===1?"":"s");
-}
-document.getElementById("reset").onclick=rebuild;
-document.getElementById("play").onclick=play;
-document.getElementById("pause").onclick=stop;
-document.getElementById("restart").onclick=()=>{stop();t=0;draw();};
-document.getElementById("speed").oninput=e=>{speed=+e.target.value;document.getElementById("speedLbl").textContent=speed+"×";};
-document.getElementById("scrub").oninput=e=>{stop();t=+e.target.value/1000;render(current,t);};
-document.getElementById("voiceBtn").onclick=()=>{
-  voiceEnabled=!voiceEnabled;
-  const pill=document.getElementById("voiceState");
-  pill.textContent=voiceEnabled?"Voice cues enabled":"Voice cues muted";
-  pill.classList.toggle("on",voiceEnabled);
-  document.getElementById("voiceBtn").textContent=voiceEnabled?"🔊 Voice on":"🔇 Voice off";
-  resetNarration();
-};
-document.getElementById("pathBtn").onclick=()=>{runnerPathMode=!runnerPathMode; document.getElementById("pathBtn").classList.toggle("active",runnerPathMode); if(current) draw(); };
-document.getElementById("savePlayCard").onclick=saveCurrentPlayCard;
-document.getElementById("exportPlayCard").onclick=exportPlayCard;
-document.getElementById("drillBtn").onclick=()=>{nextLiveDrill();};
-document.getElementById("kidCueBtn").onclick=()=>{showKidCue(current || getAllPlays()[0]);};
-document.getElementById("newCustomPlay").onclick=()=>openCustomEditor();
-document.getElementById("editCurrentPlay").onclick=()=>{if(current)openCustomEditor(current);};
-document.getElementById("saveCustomPlay").onclick=saveCustomPlayFromEditor;
-document.getElementById("deleteCustomPlay").onclick=deleteCustomPlayFromEditor;
-document.getElementById("closeCustomPlay").onclick=closeCustomEditor;
-document.getElementById("customPlayOverlay").addEventListener("click",e=>{if(e.target.id==="customPlayOverlay")closeCustomEditor();});
-
-/* ---- Strategy Guide ---- */
-const GUIDE=`
-<section>
-  <h3>Reading outs and runners: the core decision loop</h3>
-  <p>Every defensive and offensive call starts with the same two questions: <strong>how many outs</strong>, and <strong>who's forced to run</strong>. A runner is "forced" only if every base behind them is occupied — that's why a runner on 2nd with 1st base empty can just stay put on a ground ball, but a runner on 1st with the base behind him (home) always occupied is always forced to try for 2nd.</p>
-  <p>Toggle the runners and outs in the Situation panel on the left — the play list automatically flags which plays realistically fit ("FITS NOW") versus which don't apply to the current situation.</p>
-</section>
-<section>
-  <h3>Force play vs. tag play</h3>
-  <table>
-    <tr><th>Force out</th><th>Tag out</th></tr>
-    <tr><td>Runner MUST run because the base behind them is occupied.</td><td>Runner is not required to advance — fielder must physically tag the runner or the base ahead of them.</td></tr>
-    <tr><td>Fielder just needs to touch the base with the ball before the runner arrives.</td><td>Fielder must apply the tag directly to the runner's body.</td></tr>
-    <tr><td>Example: runner on 1st, ground ball — force at 2nd.</td><td>Example: runner on 2nd only, ground ball to SS — SS must tag the runner, there's no force.</td></tr>
-  </table>
-  <p>This distinction is why a 6-4-3 double play works with a runner on 1st but a rundown is needed when a runner strays off 2nd with 1st base empty.</p>
-</section>
-<section>
-  <h3>Cutoffs and relays</h3>
-  <p>Any ball hit to the outfield with a runner in scoring position needs a cutoff — an infielder who lines up between the fielder and the target base. The cutoff exists for three reasons: it shortens a long, inaccurate throw into two accurate ones; it lets the defense change the target if a different runner takes off; and it discourages runners from testing a strong arm.</p>
-  <ul>
-    <li><strong>SS</strong> usually cuts throws coming from left field.</li>
-    <li><strong>2B</strong> usually cuts throws coming from center and right field.</li>
-    <li>The pitcher backs up throws to home; the corner infielder not involved in the play backs up throws to their base.</li>
-  </ul>
-</section>
-<section>
-  <h3>Playing for one run vs. playing for the big inning</h3>
-  <p>Infield-in and bunt-defense depth both give up range in exchange for a faster reaction. That trade is only worth it in specific spots:</p>
-  <ul>
-    <li><strong>Infield in</strong> — tying or go-ahead run on 3rd, fewer than 2 outs. A ball that gets through now scores a run instead of just moving runners.</li>
-    <li><strong>Normal depth</strong> — everywhere else. The extra range prevents bigger innings even though it occasionally lets a run score from 3rd on contact.</li>
-    <li><strong>Bunt defense</strong> — runner(s) on base, 0-1 outs, and the situation/count says a sacrifice is likely. Corners crash early to shrink the bunt's head start.</li>
-  </ul>
-</section>
-<section>
-  <h3>Bunting: sacrifice vs. squeeze vs. drag</h3>
-  <ul>
-    <li><strong>Sacrifice bunt</strong> — trades an out to advance a runner. Worth it when one run matters more than a big inning (late innings, close game, weak hitters coming up).</li>
-    <li><strong>Suicide squeeze</strong> — runner breaks from 3rd before the bunt is down. High risk (a missed bunt strands the runner dead at home) but nearly unstoppable if executed, since the defense can't react until the ball is already on the ground.</li>
-    <li><strong>Safety squeeze</strong> — runner waits to see the bunt is down before breaking. Slower, but protects the runner if the bunt is missed or popped up.</li>
-    <li><strong>Drag/slap bunt</strong> — batter (often a fast slap hitter) bunts for a base hit rather than a sacrifice, exploiting a defense that isn't crashing.</li>
-  </ul>
-</section>
-<section>
-  <h3>First-and-third: the defense's dilemma</h3>
-  <p>Runners on 1st and 3rd is the trickiest situation to defend. If the runner on 1st steals and the catcher throws through to 2nd normally, the runner on 3rd often walks home for free. Common defensive answers:</p>
-  <ul>
-    <li><strong>Throw through</strong> — accept the run only if the batting team is unlikely to actually send the runner home, or if the game situation says an out at 2nd matters more.</li>
-    <li><strong>Fake-and-hold</strong> — catcher fakes the throw to 2nd and instead looks the runner back at 3rd, or quick-tosses back to the pitcher, who can catch a runner who strayed too far off 3rd.</li>
-    <li><strong>Cutoff intercept</strong> — the throw still goes to 2nd, but a middle infielder cheats into the throw lane and can redirect it home if the runner from 3rd breaks.</li>
-  </ul>
-</section>
-<section>
-  <h3>Hit-and-run</h3>
-  <p>The runner on 1st breaks with the pitch, and the batter is obligated to protect them by putting the ball in play — even a mediocre swing is preferable to taking the pitch and risking a stolen-base throw-out. It works best with a contact hitter and a fastball count; it's a poor call on a 2-strike count or with a hitter who pops the ball up often, since a line-drive or fly-out with the runner going can turn into an easy double play.</p>
-</section>
-<section>
-  <h3>Rundowns (pickles)</h3>
-  <p>When a runner gets caught between bases, the defense's goal is to finish it in as few throws as possible. Every extra throw is a chance for a errant toss that lets the runner advance anyway. Run the runner hard toward the base ahead of them, get the throw off late (not early), and never let a fielder throw across their own body.</p>
-</section>
-<section>
-  <h3>9 vs. 10 defenders</h3>
-  <p>A 10th defender (used in many rec/travel leagues) adds a 4th outfielder, most often stationed in right-center or left-center depending on the batter's pull tendency. This shrinks the gaps that a 3-outfielder alignment can't fully cover, at the cost of one fewer body if you wanted extra infield depth instead. Try the "10 Players" formation with the gap-shot play to see the difference in coverage.</p>
-</section>`;
-
-document.getElementById("guideBtn").onclick=()=>{
-  document.getElementById("guideBody").innerHTML=GUIDE;
-  document.getElementById("guideOverlay").classList.add("open");
-};
-document.getElementById("guideClose").onclick=()=>document.getElementById("guideOverlay").classList.remove("open");
-document.getElementById("guideOverlay").addEventListener("click",e=>{if(e.target.id==="guideOverlay")e.currentTarget.classList.remove("open");});
-
-buildStart();drawField();updateDepthCap();updateSit();renderList();
+buildSituationList();
+selectSituation(0);
 </script>
 </body>
 </html>
