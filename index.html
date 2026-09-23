@@ -243,6 +243,7 @@ let start={};   // starting position per player (user-draggable)
 let voiceEnabled=true;
 let customPlays=[];
 let customEditorId=null;
+let customEditorSourceId=null;
 let runnerPathMode=false;
 let lastVoiceFrame=-1;
 let drillIndex=0;
@@ -358,7 +359,7 @@ const PLAYS=[
 
 {id:"h4",type:"hitting",name:"Gap shot right-center (uses 10th fielder)",desc:"In 10-player, RC takes the gap; 2B is the relay and SS covers second.",
  why:"A 4th outfielder shrinks the gaps a 3-outfield alignment can't cover. The relay (2B) exists because no outfielder can throw 200+ feet accurately — the relay turns a slow, weak throw into two accurate ones and keeps extra bases off the board.",
- situ:{need:[],outsLt:3,note:"Only available in the 10-player formation — switch to '10 Players' above to see this coverage."},
+ situ:{need:[],outsLt:3,formation:10,requiredPlayers:["RC"],note:"Only available in the 10-player formation — switch to '10 Players' above to see this coverage."},
  steps:[
   {t:[0,.12],ball:{from:"P",to:{x:400,y:642}},note:"The pitch"},
   {t:[.12,.42],ball:{from:{x:400,y:642},to:{x:520,y:175}},arc:60,note:"Ball splits the right-center gap"},
@@ -533,7 +534,9 @@ function openCustomEditor(play){
   };
   const deleteBtn=document.getElementById('deleteCustomPlay');
   if(play){
-    customEditorId=play.id;
+    const isCustom=customPlays.some(p=>p.id===play.id);
+    customEditorId=isCustom ? play.id : null;
+    customEditorSourceId=isCustom ? (play.sourcePlayId || null) : play.id;
     form.name.value=play.name||'';
     form.type.value=play.type||'hitting';
     form.desc.value=play.desc||'';
@@ -542,6 +545,7 @@ function openCustomEditor(play){
     deleteBtn.style.display = customPlays.some(p=>p.id===play.id) ? 'inline-block' : 'none';
   } else {
     customEditorId=null;
+    customEditorSourceId=null;
     form.name.value='';
     form.type.value='hitting';
     form.desc.value='';
@@ -571,6 +575,7 @@ function saveCustomPlayFromEditor(){
   }
   const item={
     id: customEditorId || `custom-${Date.now()}`,
+    ...(customEditorSourceId ? {sourcePlayId:customEditorSourceId} : {}),
     type:form.type,
     name:form.name,
     desc:form.desc,
@@ -590,6 +595,7 @@ function saveCustomPlayFromEditor(){
     customPlays.push(item);
     customEditorId=item.id;
   }
+  customEditorSourceId=item.sourcePlayId || null;
   saveCustomPlays();
   closeCustomEditor();
   renderList();
@@ -722,16 +728,19 @@ function render(play,t){
       const from=resolve(r.from,pos); const to=resolve(r.to,pos);
       if(!from || !to) return;
       const g=add(gRunners,"g",{});
-      add(g,"circle",{cx:from.x,cy:from.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
-      add(g,"circle",{cx:to.x,cy:to.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
+      const fromHandle=add(g,"circle",{cx:from.x,cy:from.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
+      const toHandle=add(g,"circle",{cx:to.x,cy:to.y,r:9,fill:"#fff",stroke:"#f5a524","stroke-width":2,opacity:.9,style:"cursor:grab"});
+      fromHandle.dataset.endpoint="from";
+      toHandle.dataset.endpoint="to";
       g.addEventListener('pointerdown', ev=>{
         ev.stopPropagation();
         const handle = ev.target; const drag = (evt)=>{
           const pt=toSvg(evt);
-          if(handle.getAttribute('cx')===String(from.x) && handle.getAttribute('cy')===String(from.y)) {
-            r.from={x:pt.x,y:pt.y};
+          if(r.sourceIndex == null) return;
+          if(handle.dataset.endpoint==="from") {
+            play.runners[r.sourceIndex].from={x:pt.x,y:pt.y};
           } else {
-            r.to={x:pt.x,y:pt.y};
+            play.runners[r.sourceIndex].to={x:pt.x,y:pt.y};
           }
           render(play,t);
         };
@@ -747,7 +756,7 @@ function render(play,t){
 }
 
 function buildRunners(play){
-  const list=(play.runners||[]).map(r=>Object.assign({},r));
+  const list=(play.runners||[]).map((r,index)=>Object.assign({},r,{sourceIndex:index}));
   const used=new Set(list.map(r=>r.from));
   const NEXT={"@1":"@2","@2":"@3","@3":"@H"};
   const batterRuns=list.some(r=>r.from==="@H");
@@ -816,7 +825,9 @@ function fitPlay(p){
   if(!p.situ)return null;
   const needOk=(p.situ.need||[]).every(b=>onBase.has(b));
   const outsOk=p.situ.outsLt==null||outs<p.situ.outsLt;
-  return {ok:needOk&&outsOk,note:p.situ.note};
+  const formationOk=p.situ.formation==null||p.situ.formation===(tenPlayers?10:9);
+  const playersOk=(p.situ.requiredPlayers||[]).every(player=>Boolean(start[player]));
+  return {ok:needOk&&outsOk&&formationOk&&playersOk,note:p.situ.note};
 }
 
 function selectPlay(p){stop();current=p;t=0;
@@ -905,14 +916,14 @@ document.getElementById("customPlayOverlay").addEventListener("click",e=>{if(e.t
 const GUIDE=`
 <section>
   <h3>Reading outs and runners: the core decision loop</h3>
-  <p>Every defensive and offensive call starts with the same two questions: <strong>how many outs</strong>, and <strong>who's forced to run</strong>. A runner is "forced" only if every base behind them is occupied — that's why a runner on 2nd with 1st base empty can just stay put on a ground ball, but a runner on 1st with the base behind him (home) always occupied is always forced to try for 2nd.</p>
+  <p>Every defensive and offensive call starts with the same two questions: <strong>how many outs</strong>, and <strong>who's forced to run</strong>. A force begins when the batter becomes a batter-runner and loses the batter's right to occupy home plate. That can cascade through occupied bases: with a runner on 1st, the runner must try for 2nd; with runners on 1st and 2nd, both are forced forward.</p>
   <p>Toggle the runners and outs in the Situation panel on the left — the play list automatically flags which plays realistically fit ("FITS NOW") versus which don't apply to the current situation.</p>
 </section>
 <section>
   <h3>Force play vs. tag play</h3>
   <table>
     <tr><th>Force out</th><th>Tag out</th></tr>
-    <tr><td>Runner MUST run because the base behind them is occupied.</td><td>Runner is not required to advance — fielder must physically tag the runner or the base ahead of them.</td></tr>
+    <tr><td>Runner must advance because the batter becomes a batter-runner and the occupied bases force the chain forward.</td><td>Runner is not required to advance; the fielder normally must tag the runner, not simply touch the next base.</td></tr>
     <tr><td>Fielder just needs to touch the base with the ball before the runner arrives.</td><td>Fielder must apply the tag directly to the runner's body.</td></tr>
     <tr><td>Example: runner on 1st, ground ball — force at 2nd.</td><td>Example: runner on 2nd only, ground ball to SS — SS must tag the runner, there's no force.</td></tr>
   </table>
