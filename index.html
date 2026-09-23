@@ -243,12 +243,13 @@ const SITUATIONS = [
     why: "With no runners on, there is no lead runner to stop. The simple answer is field the bunt and throw to first, but the team still covers every base in case of an overthrow.",
     bases: [],
     steps: [
-      { label: "Pitch is bunted softly in front of the plate.", t: [0, .18], ball: [PITCHER_START, { x: 430, y: 595 }] },
-      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home, RF backs up first.", t: [.18, .46], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["SS", B2], ["C", HOME], ["P", { x: 410, y: 570 }], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", RF_BACKUP_FIRST]] },
-      { label: "Field it clean, throw to first for one sure out.", t: [.46, .76], ball: [{ x: 448, y: 588 }, B1] },
-      { label: "Finish: out at first.", t: [.76, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Bunt is deadened in front of the plate.", t: [.12, .28], ball: [CONTACT, { x: 430, y: 595 }] },
+      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home, RF backs up first.", t: [.28, .52], move: [["1B", { x: 448, y: 588 }], ["3B", { x: 350, y: 588 }], ["2B", B1], ["SS", B2], ["C", HOME], ["P", { x: 410, y: 570 }], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", RF_BACKUP_FIRST]] },
+      { label: "Field it clean, throw to first for one sure out.", t: [.52, .78], ball: [{ x: 448, y: 588 }, B1] },
+      { label: "Finish: out at first.", t: [.78, 1] }
     ],
-    runners: [{ from: HOME, to: B1, t: [.18, .82] }]
+    runners: [{ from: HOME, to: B1, t: [.28, .86] }]
   },
   {
     id: "bunt-runner-first",
@@ -259,14 +260,15 @@ const SITUATIONS = [
     why: "For 10U bunt defense, the priority is a clean, repeatable out. The runner on first may advance, but every base is covered so the defense is protected if the throw gets loose.",
     bases: ["1B"],
     steps: [
-      { label: "Bunt goes toward first base.", t: [0, .18], ball: [PITCHER_START, { x: 452, y: 590 }] },
-      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home, RF backs up first.", t: [.18, .48], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }], ["C", HOME], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", RF_BACKUP_FIRST]] },
-      { label: "2B is on first. Throw to first for the sure out.", t: [.48, .74], ball: [{ x: 452, y: 590 }, B1] },
-      { label: "Finish: out at first, runner advances to second.", t: [.74, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Bunt goes from home toward first base.", t: [.12, .28], ball: [CONTACT, { x: 452, y: 590 }] },
+      { label: "Everyone yells bunt. 2B covers first, SS covers second, LF covers third, C has home, RF backs up first.", t: [.28, .52], move: [["1B", { x: 452, y: 590 }], ["SS", B2], ["2B", B1], ["3B", { x: 345, y: 580 }], ["C", HOME], ["LF", B3], ["CF", { x: 400, y: 305 }], ["RF", RF_BACKUP_FIRST]] },
+      { label: "2B is on first. Throw to first for the sure out.", t: [.52, .78], ball: [{ x: 452, y: 590 }, B1] },
+      { label: "Finish: out at first, runner advances to second.", t: [.78, 1] }
     ],
     runners: [
-      { from: B1, to: B2, t: [.18, .78] },
-      { from: HOME, to: B1, t: [.18, .9] }
+      { from: B1, to: B2, t: [.28, .82] },
+      { from: HOME, to: B1, t: [.28, .92] }
     ]
   },
   {
@@ -278,14 +280,15 @@ const SITUATIONS = [
     why: "A runner on second is not forced when first base is empty. The defense must tag her if she goes, so SS covers third while 2B gets first and an outfielder comes in to support second.",
     bases: ["2B"],
     steps: [
-      { label: "Bunt is down toward third base.", t: [0, .18], ball: [PITCHER_START, { x: 355, y: 590 }] },
-      { label: "Everyone yells bunt. 2B covers first, SS covers third, CF supports second, C has home, RF backs up first.", t: [.18, .48], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }], ["C", HOME], ["LF", { x: 230, y: 330 }], ["CF", B2], ["RF", RF_BACKUP_FIRST]] },
-      { label: "3B checks the runner, then throws to first.", t: [.48, .76], ball: [{ x: 355, y: 590 }, B1] },
-      { label: "Finish: sure out at first, runner held.", t: [.76, 1] }
+      { label: "Pitch reaches the plate.", t: [0, .12], ball: [PITCHER_START, CONTACT] },
+      { label: "Bunt goes from home toward the 3B line.", t: [.12, .28], ball: [CONTACT, { x: 355, y: 590 }] },
+      { label: "Everyone yells bunt. 2B covers first, SS covers third, CF supports second, C has home, RF backs up first.", t: [.28, .52], move: [["3B", { x: 355, y: 590 }], ["SS", B3], ["2B", B1], ["P", { x: 390, y: 570 }], ["C", HOME], ["LF", { x: 230, y: 330 }], ["CF", B2], ["RF", RF_BACKUP_FIRST]] },
+      { label: "3B checks the runner, then throws to first.", t: [.52, .78], ball: [{ x: 355, y: 590 }, B1] },
+      { label: "Finish: sure out at first, runner held.", t: [.78, 1] }
     ],
     runners: [
-      { from: B2, to: { x: 315, y: 455 }, t: [.18, .45], holdAtEnd: true },
-      { from: HOME, to: B1, t: [.18, .9] }
+      { from: B2, to: { x: 315, y: 455 }, t: [.28, .52], holdAtEnd: true },
+      { from: HOME, to: B1, t: [.28, .92] }
     ]
   },
   {
